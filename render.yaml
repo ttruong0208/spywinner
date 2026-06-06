@@ -1,0 +1,26 @@
+# Render Blueprint — https://render.com
+# After connect repo: set secret env vars in Dashboard (see README).
+
+services:
+  - type: web
+    name: winnerspy
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-web.txt && pip install gunicorn>=22.0.0
+    startCommand: gunicorn web_app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: WINNERSPY_ALLOW_REGISTER
+        value: "1"
+      - key: WINNERSPY_PRODUCTION
+        value: "1"
+      - key: WINNERSPY_SECRET
+        sync: false
+      - key: WINNERSPY_ADMIN_PASSWORD
+        sync: false
+      - key: WINNERSPY_ADMIN_PATH
+        value: cp-winnerspy
+      - key: WINNERSPY_ADMIN_IPS
+        sync: false
