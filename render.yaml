@@ -16,6 +16,10 @@ services:
         value: "1"
       - key: WINNERSPY_PRODUCTION
         value: "1"
+      - key: WINNERSPY_APP_URL
+        value: https://winnerspy.app
+      - key: WINNERSPY_PAYPAL_ME
+        sync: false
       - key: WINNERSPY_SECRET
         sync: false
       - key: WINNERSPY_ADMIN_PASSWORD

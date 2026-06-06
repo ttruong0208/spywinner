@@ -37,6 +37,7 @@ import winnerspy_auth as auth
 import winnerspy_db as db
 from winnerspy_api import bp as api_bp
 from winnerspy_config import (
+    app_base_url,
     launch_promo_enabled,
     launch_promo_note,
     list_payment_methods,
@@ -252,6 +253,8 @@ def inject_globals():
         "support_hours": support_hours(),
         "beta_guarantee": beta_guarantee_text(),
         "positioning_line": positioning_line(),
+        "app_url": app_base_url(),
+        "api_base_url": f"{app_base_url()}/api/v1",
     }
     if current_user.is_authenticated:
         limits = db.plan_limits(current_user.plan if current_user.plan != "admin" else "vip")
@@ -414,7 +417,10 @@ def register():
                 if target_plan == "free":
                     flash("Free account ready — 5 scans per day.", "ok")
                 else:
-                    flash(f"Signed up — complete {target_plan.upper()} checkout next.", "ok")
+                    flash(
+                        f"Account created — complete {target_plan.upper()} checkout and submit payment proof.",
+                        "ok",
+                    )
                 return _redirect_after_auth(target_plan)
     return render_template(
         "register.html",
@@ -452,11 +458,7 @@ def verify_email():
     fresh = db.get_user_by_id(row["id"])
     login_user(User(fresh))
     flash("Email verified. Welcome to WinnerSpy!", "ok")
-    dash = url_for("dashboard", _external=False)
-    try:
-        dash_abs = url_for("dashboard", _external=True)
-    except Exception:
-        dash_abs = dash
+    dash_abs = f"{app_base_url()}/dashboard"
     if send_welcome_email(fresh["email"], dash_abs):
         flash("Sent a getting-started email — check your inbox.", "ok")
     return _redirect_after_auth(session.get("pending_plan", "free"))
@@ -520,11 +522,15 @@ def checkout(plan):
         if not pending:
             db.create_upgrade_request(current_user.id, plan, note)
             flash(
-                f"Upgrade to {plan.upper()} recorded. We activate after payment (usually within 24h).",
-                "ok",
+                f"Payment submitted for {plan.upper()} — pending verification. "
+                "Your account stays on Free until we confirm (usually within 24 hours).",
+                "warn",
             )
         else:
-            flash("Your request is pending — we will activate soon.", "ok")
+            flash(
+                "Your payment is still pending review — we will activate your plan after verification.",
+                "warn",
+            )
         return redirect(url_for("checkout", plan=plan))
 
     labels = plan_feature_labels(plan)

@@ -23,7 +23,12 @@
     <a href="{{ support_zalo_url }}" class="btn ghost" target="_blank" rel="noopener">Support</a>
     {% endif %}
     <a href="{{ url_for('login') }}" class="btn ghost">Log in</a>
+    {% if registration_allowed %}
+    <a href="{{ url_for('register', plan='free') }}" class="btn ghost">Sign up</a>
     <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary">Start free trial</a>
+    {% else %}
+    <a href="{{ url_for('login') }}" class="btn primary">Log in</a>
+    {% endif %}
   </nav>
 </header>
 
@@ -51,7 +56,9 @@
       <a href="{{ url_for('home') }}">Home</a>
       <a href="{{ url_for('home') }}#faq">FAQ</a>
       <a href="{{ url_for('login') }}">Log in</a>
-      <a href="{{ url_for('choose_plan', plan='free') }}">Sign up</a>
+      {% if registration_allowed %}
+      <a href="{{ url_for('register', plan='free') }}">Sign up</a>
+      {% endif %}
       {% if support_zalo_url %}
       <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Support</a>
       {% endif %}

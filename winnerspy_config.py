@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import quote
 
 
 def _truthy(name: str, default: str = "0") -> bool:
@@ -61,6 +62,16 @@ def plan_price_period() -> str:
     return os.environ.get("WINNERSPY_PRICE_PERIOD", "/mo").strip()
 
 
+def app_base_url() -> str:
+    """Public site URL — emails, API docs, verification links."""
+    explicit = os.environ.get("WINNERSPY_APP_URL", "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    if _truthy("WINNERSPY_PRODUCTION", "0"):
+        return "https://winnerspy.app"
+    return "http://127.0.0.1:5050"
+
+
 def payment_bank_info() -> str:
     """Short fallback line when no payment env vars are set."""
     return os.environ.get(
@@ -76,6 +87,32 @@ def payment_transfer_hint(email: str, plan: str) -> str:
         "WINNERSPY_PAYMENT_MEMO",
         f"WS-{slug}-{short}",
     ).replace("{email}", email).replace("{plan}", plan.upper())
+
+
+def paypal_checkout_url(plan: str, price: str, memo: str) -> str | None:
+    """PayPal.me or PayPal business link with amount + reference."""
+    amount_usd = price.replace("$", "").strip() or "0"
+    paypal_me = os.environ.get("WINNERSPY_PAYPAL_ME", "").strip()
+    paypal_email = os.environ.get("WINNERSPY_PAYPAL_EMAIL", "").strip()
+    custom_url = os.environ.get("WINNERSPY_PAYPAL_URL", "").strip()
+    if custom_url:
+        return custom_url
+    if paypal_me.startswith("http"):
+        return paypal_me
+    if paypal_me:
+        slug = paypal_me.strip("/").split("/")[-1]
+        return f"https://www.paypal.me/{slug}/{amount_usd}USD"
+    if paypal_email:
+        item = f"WinnerSpy {plan.upper()}"
+        return (
+            "https://www.paypal.com/cgi-bin/webscr?cmd=_xclick"
+            f"&business={quote(paypal_email)}"
+            f"&amount={quote(amount_usd)}"
+            f"&currency_code=USD"
+            f"&item_name={quote(item)}"
+            f"&custom={quote(memo)}"
+        )
+    return None
 
 
 def checkout_link_for_plan(plan: str) -> str:
@@ -96,44 +133,50 @@ def list_payment_methods(
 ) -> list[dict]:
     """Checkout UI — ordered payment options (USD / international)."""
     period = plan_price_period()
-    amount_usd = price.replace("$", "").strip() or "0"
     methods: list[dict] = []
+    pending_note = (
+        "PayPal/Wise may show payment complete on their app — "
+        "your WinnerSpy plan stays <strong>Free until we verify</strong> (usually within 24 hours)."
+    )
+
+    paypal_url = paypal_checkout_url(plan, price, memo)
+    paypal_me = os.environ.get("WINNERSPY_PAYPAL_ME", "").strip()
+    paypal_email = os.environ.get("WINNERSPY_PAYPAL_EMAIL", "").strip()
+    if paypal_url:
+        recipient = (
+            paypal_me.split("/")[-1]
+            if paypal_me and not paypal_me.startswith("http")
+            else paypal_email
+        )
+        methods.append(
+            {
+                "id": "paypal",
+                "title": "PayPal (scan QR or send link)",
+                "detail": (
+                    f"Pay <strong>{price}{period}</strong> via PayPal"
+                    + (f" to <code>{recipient}</code>" if recipient else "")
+                    + f". Memo/note: <code>{memo}</code>. {pending_note}"
+                ),
+                "action_label": f"Pay {price}{period} on PayPal",
+                "action_url": paypal_url,
+                "copy": recipient or paypal_email or None,
+                "qr_url": paypal_url,
+                "primary": True,
+            }
+        )
 
     checkout_url = checkout_link_for_plan(plan)
     if checkout_url:
         methods.append(
             {
                 "id": "checkout",
-                "title": "Pay online (card / PayPal)",
-                "detail": f"Pay <strong>{price}{period}</strong> on our checkout page, then submit confirmation below.",
-                "action_label": f"Pay {price}{period}",
-                "action_url": checkout_url,
-                "primary": True,
-            }
-        )
-
-    paypal_me = os.environ.get("WINNERSPY_PAYPAL_ME", "").strip()
-    paypal_email = os.environ.get("WINNERSPY_PAYPAL_EMAIL", "").strip()
-    if paypal_me or paypal_email:
-        if paypal_me.startswith("http"):
-            paypal_url = paypal_me
-        elif paypal_me:
-            paypal_url = f"https://www.paypal.me/{paypal_me.strip('/')}/{amount_usd}USD"
-        else:
-            paypal_url = os.environ.get("WINNERSPY_PAYPAL_URL", "").strip()
-        recipient = paypal_me if paypal_me and not paypal_me.startswith("http") else paypal_email
-        methods.append(
-            {
-                "id": "paypal",
-                "title": "PayPal",
+                "title": "Pay online (card / PayPal checkout)",
                 "detail": (
-                    f"Send <strong>{price}{period}</strong> via PayPal"
-                    + (f" to <code>{recipient}</code>" if recipient else "")
-                    + f". Add note/memo: <code>{memo}</code>."
+                    f"Pay <strong>{price}{period}</strong> on our checkout page, "
+                    f"then submit your payment reference below. {pending_note}"
                 ),
-                "action_label": "Open PayPal",
-                "action_url": paypal_url or None,
-                "copy": recipient or paypal_email,
+                "action_label": f"Open checkout — {price}{period}",
+                "action_url": checkout_url,
             }
         )
 
@@ -148,7 +191,7 @@ def list_payment_methods(
                 "title": "Wise (USD transfer)",
                 "detail": (
                     f"Send <strong>{price}{period}</strong> in USD to <code>{wise}</code>. "
-                    f"Reference: <code>{memo}</code>."
+                    f"Reference: <code>{memo}</code>. {pending_note}"
                 ),
                 "action_label": "Open Wise",
                 "action_url": os.environ.get("WINNERSPY_WISE_URL", "https://wise.com/send").strip(),
@@ -165,7 +208,7 @@ def list_payment_methods(
                 "title": f"USDT ({network})",
                 "detail": (
                     f"Send <strong>{price}{period}</strong> equivalent in USDT ({network}). "
-                    f"Memo/reference: <code>{memo}</code>."
+                    f"Memo/reference: <code>{memo}</code>. {pending_note}"
                 ),
                 "copy": usdt,
             }

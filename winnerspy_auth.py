@@ -92,8 +92,17 @@ def admin_bootstrap_password() -> str:
 
 
 def email_verification_enabled() -> bool:
-    """Tắt khi dev: WINNERSPY_SKIP_EMAIL_VERIFY=1"""
-    return not _env_truthy("WINNERSPY_SKIP_EMAIL_VERIFY", "0")
+    """Require verified email only when SMTP is configured (or forced via env)."""
+    if _env_truthy("WINNERSPY_SKIP_EMAIL_VERIFY", "0"):
+        return False
+    if _env_truthy("WINNERSPY_REQUIRE_EMAIL_VERIFY", "0"):
+        return True
+    try:
+        from winnerspy_mail import smtp_configured
+
+        return smtp_configured()
+    except Exception:
+        return False
 
 
 def is_user_email_verified(row: dict | None) -> bool:

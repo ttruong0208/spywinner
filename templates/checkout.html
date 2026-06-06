@@ -2,7 +2,7 @@
 {% block title %}Checkout {{ plan|upper }} — WinnerSpy{% endblock %}
 {% block content %}
 <header class="page-header checkout-header">
-  <p class="eyebrow">Final step — activate your plan</p>
+  <p class="eyebrow">Upgrade checkout</p>
   <h1>Upgrade to <span class="plan-badge {{ plan }}">{{ plan|upper }}</span></h1>
   <p class="lead">Account: <strong>{{ current_user.email }}</strong> · Current plan: <span class="plan-badge">{{ current_user.plan }}</span></p>
 </header>
@@ -42,11 +42,20 @@
 
   <section class="card checkout-pay">
     {% if pending %}
-    <div class="flash ok">
-      <strong>Request submitted {{ pending.created_at[:16] }}</strong> — we're verifying your payment.
-      Activation usually takes <strong>24 hours</strong>. You can use the app on Free in the meantime.
+    <div class="checkout-pending-box">
+      <p class="checkout-pending-title">⏳ Payment pending verification</p>
+      <p class="muted small" style="margin:0.35rem 0 0">
+        Request submitted <strong>{{ pending.created_at[:16] }}</strong>.
+        PayPal/Wise may already show “payment complete” on their side — that is normal.
+        <strong>WinnerSpy stays on Free</strong> until we manually verify and upgrade you (usually within 24 hours).
+      </p>
     </div>
     {% else %}
+    <div class="checkout-pending-note">
+      <strong>Important:</strong> Scanning a PayPal QR or completing payment in PayPal/Wise does <em>not</em> auto-upgrade your account.
+      Submit the form below after paying so we can verify and activate {{ plan|upper }}.
+    </div>
+
     <div class="trust-checkout-box">
       <p class="muted small" style="margin:0"><strong>Guarantee:</strong> {{ beta_guarantee }}</p>
     </div>
@@ -54,13 +63,13 @@
     <h2>Payment (USD)</h2>
     <p class="muted">
       Monthly subscription — <strong>{{ price }}{{ price_period }}</strong>.
-      We activate manually after confirming payment (usually within 24 hours).
+      Manual verification required before your plan changes.
     </p>
 
     <ol class="checkout-steps muted small">
       <li>Pay <strong>{{ price }}{{ price_period }}</strong> using one of the methods below</li>
       <li>Include payment reference <code>{{ transfer_memo }}</code> in the PayPal/Wise note or USDT memo</li>
-      <li>Submit the confirmation form so we can activate <strong>{{ plan|upper }}</strong></li>
+      <li>Submit payment proof below — status will show <strong>pending</strong> until we confirm</li>
     </ol>
 
     <div class="checkout-memo checkout-memo-prominent">
@@ -74,6 +83,18 @@
       <div class="payment-method-card{% if m.primary %} is-primary{% endif %}">
         <strong>{{ m.title }}</strong>
         <p class="muted small payment-method-detail">{{ m.detail|safe }}</p>
+        {% if m.qr_url %}
+        <div class="payment-qr-wrap">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={{ m.qr_url|urlencode }}"
+            width="160"
+            height="160"
+            alt="PayPal payment QR code"
+            loading="lazy"
+          />
+          <p class="muted small">Scan with PayPal app — then submit proof below (plan not upgraded instantly).</p>
+        </div>
+        {% endif %}
         <div class="payment-method-actions">
           {% if m.action_url %}
           <a href="{{ m.action_url }}" class="btn {% if m.primary %}primary{% else %}secondary{% endif %} small-btn" target="_blank" rel="noopener noreferrer">{{ m.action_label }}</a>
@@ -94,15 +115,15 @@
 
     <form method="post" class="form checkout-confirm mt">
       {% include "_csrf.html" %}
-      <h3 style="margin:0 0 0.75rem;font-size:1rem">Confirm payment</h3>
+      <h3 style="margin:0 0 0.75rem;font-size:1rem">Submit payment proof</h3>
       <label>Payment details (PayPal txn ID, Wise transfer ID, USDT hash, time paid…)
         <input type="text" name="transfer_note" required placeholder="e.g. PayPal 1AB23456CD — {{ price }} paid today"/>
       </label>
       <button type="submit" class="btn primary btn-lg" style="width:100%">
-        I've paid {{ price }}{{ price_period }} — activate my plan
+        Submit payment — pending verification
       </button>
       <p class="muted small" style="text-align:center;margin:0.5rem 0 0">
-        Submit after sending payment. We'll verify and upgrade your account to {{ plan|upper }}.
+        You will stay on Free until we confirm payment and upgrade you to {{ plan|upper }}.
       </p>
     </form>
     {% endif %}

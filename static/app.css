@@ -732,6 +732,7 @@ details.advanced .advanced-body {
 
 .flash.error { background: var(--danger-soft); color: var(--danger); border: 1px solid #fecaca; }
 .flash.ok { background: var(--success-soft); color: var(--success); border: 1px solid #a7f3d0; }
+.flash.warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 
 .err-text { color: var(--danger); font-size: 0.8125rem; margin-top: 0.5rem; }
 
@@ -1002,6 +1003,37 @@ code {
 .payment-method-card.is-primary {
   border-color: var(--primary);
   background: var(--primary-soft, #eef2ff);
+}
+.checkout-pending-note {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.checkout-pending-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.checkout-pending-title {
+  margin: 0;
+  font-weight: 700;
+  color: #b45309;
+}
+.payment-qr-wrap {
+  margin: 0.75rem 0;
+  text-align: center;
+}
+.payment-qr-wrap img {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
 }
 .payment-method-detail { margin: 0.35rem 0 0.65rem; line-height: 1.5; }
 .payment-method-detail code {
