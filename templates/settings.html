@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block title %}Settings — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Settings</h1>
+  <p class="lead">Browser connection, webhooks, and API.</p>
+</header>
+
+<section class="card">
+  <h2>Your plan</h2>
+  <p>Current plan: <span class="plan-badge {{ user.plan }}">{{ user.plan }}</span></p>
+  <ul class="muted small" style="margin:0.75rem 0 1rem;padding-left:1.2rem">
+    <li>{{ limits.scans_per_day }} scans / day</li>
+    <li>Up to {{ limits.keywords_max }} keywords / scan</li>
+    <li>{% if limits.tiktok %}TikTok ≤ {{ limits.tiktok_max }} products{% else %}TikTok not included — Pro/VIP required{% endif %}</li>
+    <li>{% if limits.google_trends %}Google Trends ≤ {{ limits.gt_max }} products{% else %}Google Trends VIP only{% endif %}</li>
+  </ul>
+  <a href="{{ url_for('pricing_page') }}" class="btn primary">View pricing &amp; upgrade</a>
+  <hr class="divider"/>
+  <h2>Browser &amp; notifications</h2>
+  <form method="post" class="form" style="margin-top:1rem">
+    {% include "_csrf.html" %}
+    <input type="hidden" name="action" value="save"/>
+    <label>Chrome debug URL (CDP)
+      <input type="text" name="cdp_url" value="{{ user.cdp_url or 'http://127.0.0.1:9222' }}"/>
+    </label>
+    <label>Webhook when report completes
+      <input type="url" name="webhook_url" value="{{ user.webhook_url or '' }}" placeholder="https://..."/>
+    </label>
+    <button type="submit" class="btn primary">Save</button>
+  </form>
+
+  <hr class="divider"/>
+  <h2>API</h2>
+  {% if limits.api %}
+  <p class="muted small">For automation integrations (Pro/Admin)</p>
+  <code class="key">{{ user.api_key }}</code>
+  <div class="actions" style="margin-top:0.75rem">
+    <form method="post" class="inline-form">
+      {% include "_csrf.html" %}
+      <input type="hidden" name="action" value="regen_key"/>
+      <button type="submit" class="btn secondary" onclick="return confirm('Generate a new key?')">Regenerate key</button>
+    </form>
+    <a class="btn ghost" href="{{ url_for('api_docs') }}">Documentation</a>
+  </div>
+  {% else %}
+  <p class="muted">Upgrade to Pro/VIP for API access. <a href="{{ url_for('pricing_page') }}">View pricing</a></p>
+  {% endif %}
+</section>
+{% endblock %}

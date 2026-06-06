@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}WinnerSpy{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v={{ asset_v|default('1') }}"/>
+</head>
+<body>
+{% if current_user.is_authenticated %}
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="brand-block">
+      <a href="{{ url_for('dashboard') }}" class="brand">
+        <span class="brand-icon">W</span>
+        <span>
+          <span class="brand-name">WinnerSpy</span>
+          <span class="brand-tag">Product intelligence</span>
+        </span>
+      </a>
+    </div>
+    <nav class="side-nav">
+      <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Overview
+      </a>
+      <a href="{{ url_for('schedules_page') }}" class="{% if request.endpoint == 'schedules_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Scan schedules
+      </a>
+      <a href="{{ url_for('pricing_page') }}" class="{% if request.endpoint == 'pricing_page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Pricing / Upgrade
+      </a>
+      <a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </a>
+      <a href="{{ url_for('api_docs') }}" class="{% if request.endpoint == 'api_docs' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l3 3-3 3M13 15h3M4 4h16v16H4z"/></svg>
+        API
+      </a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>
+        Admin
+      </a>
+      {% endif %}
+    </nav>
+    <div class="side-footer">
+      <div class="user-chip">
+        <div class="user-meta">
+          <span class="plan-badge {{ current_user.plan }}">{{ current_user.plan }}</span>
+          {% if user_limits %}
+          <span class="quota-text">{{ scans_today }}/{{ user_limits.scans_per_day }} scans</span>
+          {% endif %}
+        </div>
+        {% if current_user.plan == 'free' or current_user.plan == 'pro' %}
+        <a href="{{ url_for('pricing_page') }}" class="side-upgrade-link">Upgrade to Pro/VIP →</a>
+        {% endif %}
+        {% if support_zalo_url %}
+        <a href="{{ support_zalo_url }}" class="side-support-link" target="_blank" rel="noopener">💬 Support</a>
+        {% endif %}
+        <div class="email">{{ current_user.email }}</div>
+        <a class="logout-link" href="{{ url_for('logout') }}">Log out</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <span class="brand-name">WinnerSpy</span>
+      <span class="plan-badge">{{ current_user.plan }}</span>
+    </header>
+    <main class="wrap">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-wrap">
+        {% for cat, msg in messages %}
+        <p class="flash {{ cat }}">{{ msg }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="foot">© WinnerSpy · Product reports from Facebook Ads Library</footer>
+  </div>
+</div>
+{% include "_support_widget.html" %}
+{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

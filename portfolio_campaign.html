@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Campaign Builder — Portfolio</title>
+  <style>
+    body { font-family: Segoe UI, sans-serif; background:#f5f7fb; margin:0; padding:24px; color:#1f2937; }
+    h1 { margin:0 0 4px; color:#24324a; }
+    .sub { color:#6b7280; margin-bottom:20px; font-size:14px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+    .panel { background:#fff; border:1px solid #d9e2ef; border-radius:14px; padding:18px; box-shadow:0 4px 18px rgba(0,0,0,.04); }
+    .panel h2 { font-size:12px; text-transform:uppercase; color:#6b7280; margin:0 0 12px; letter-spacing:.5px; }
+    label { display:block; font-size:12px; color:#374151; margin:8px 0 4px; }
+    input, select { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
+    .btn { margin-top:12px; background:linear-gradient(135deg,#5b6cff,#43c6ac); color:#fff; border:0; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
+    .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .stat { background:#fff; border:1px solid #d9e2ef; border-radius:12px; padding:12px 16px; min-width:110px; }
+    .stat .n { font-size:22px; font-weight:800; color:#5b6cff; }
+    .stat .l { font-size:11px; color:#6b7280; }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:12px; }
+    th { background:#eef2ff; font-size:11px; text-transform:uppercase; }
+    .ok { color:#059669; font-weight:700; }
+    .log { font-family:Consolas, monospace; font-size:11px; background:#0f172a; color:#cbd5e1; border-radius:10px; padding:12px; line-height:1.6; }
+    .log .g { color:#34d399; }
+    @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <h1>Facebook Campaign Builder</h1>
+  <p class="sub">Bulk setup &amp; scale — template-based automation for media buyers</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">24</div><div class="l">Queued</div></div>
+    <div class="stat"><div class="n">18</div><div class="l">Created</div></div>
+    <div class="stat"><div class="n">6</div><div class="l">Pending</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">Templates</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Campaign template</h2>
+      <label>Template name</label>
+      <input value="US — Conversions — CBO"/>
+      <label>Objective</label>
+      <select><option>Sales / Conversions</option></select>
+      <label>Daily budget (USD)</label>
+      <input value="20"/>
+      <label>Countries</label>
+      <input value="US, CA, AU"/>
+      <label>Ad sets per campaign</label>
+      <input value="3"/>
+      <button class="btn">Run bulk create (24)</button>
+    </div>
+    <div class="panel">
+      <h2>Run log</h2>
+      <div class="log">
+        <div class="g">[09:12:01] Template loaded: US — Conversions — CBO</div>
+        <div>[09:12:03] Batch 1/4 — creating 6 campaigns...</div>
+        <div class="g">[09:12:18] ✓ Campaign #1 — 3 ad sets — published</div>
+        <div class="g">[09:12:31] ✓ Campaign #2 — 3 ad sets — published</div>
+        <div class="g">[09:12:44] ✓ Campaign #3 — 3 ad sets — published</div>
+        <div>[09:13:02] Batch 2/4 — creating 6 campaigns...</div>
+        <div class="g">[09:13:55] Progress: 18/24 created (75%)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Queue status</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Account</th><th>Campaign name</th><th>Ad sets</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Ad Account A</td><td>US_CBO_Product_01</td><td>3</td><td class="ok">Created</td></tr>
+        <tr><td>2</td><td>Ad Account A</td><td>US_CBO_Product_02</td><td>3</td><td class="ok">Created</td></tr>
+        <tr><td>3</td><td>Ad Account B</td><td>US_CBO_Product_03</td><td>3</td><td class="ok">Created</td></tr>
+        <tr><td>4</td><td>Ad Account B</td><td>US_CBO_Product_04</td><td>3</td><td>Pending</td></tr>
+        <tr><td>5</td><td>Ad Account C</td><td>US_CBO_Product_05</td><td>3</td><td>Pending</td></tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

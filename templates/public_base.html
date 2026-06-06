@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}WinnerSpy{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v={{ asset_v|default('1') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v={{ asset_v|default('1') }}"/>
+</head>
+<body class="public-page">
+<header class="public-nav">
+  <a href="{{ url_for('home') }}" class="public-logo">
+    <span class="brand-icon">W</span>
+    <span class="brand-name">WinnerSpy</span>
+  </a>
+  <nav class="public-links">
+    <a href="{{ url_for('home') }}#features">Features</a>
+    <a href="{{ url_for('home') }}#compare">Compare</a>
+    <a href="{{ url_for('home') }}#how-it-works">How it works</a>
+    <a href="{{ url_for('home') }}#pricing">Pricing</a>
+    <a href="{{ url_for('home') }}#faq">FAQ</a>
+    {% if support_zalo_url %}
+    <a href="{{ support_zalo_url }}" class="btn ghost" target="_blank" rel="noopener">Support</a>
+    {% endif %}
+    <a href="{{ url_for('login') }}" class="btn ghost">Log in</a>
+    <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary">Start free trial</a>
+  </nav>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="public-flash">
+  {% for cat, msg in messages %}
+  <p class="flash {{ cat }}">{{ msg }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+{% block body %}{% endblock %}
+
+{% include "_support_widget.html" %}
+
+<footer class="public-footer">
+  <div class="footer-inner">
+    <div>
+      <strong>WinnerSpy</strong>
+      <p class="muted small">Product research platform powered by Facebook Ads Library</p>
+    </div>
+    <div class="footer-links">
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('home') }}#faq">FAQ</a>
+      <a href="{{ url_for('login') }}">Log in</a>
+      <a href="{{ url_for('choose_plan', plan='free') }}">Sign up</a>
+      {% if support_zalo_url %}
+      <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Support</a>
+      {% endif %}
+    </div>
+  </div>
+  <p class="footer-copy">© WinnerSpy · Product research reports — not investment advice</p>
+</footer>
+</body>
+</html>

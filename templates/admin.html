@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+{% block title %}Admin — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <p class="eyebrow">Administration</p>
+  <h1>Admin dashboard</h1>
+  <p class="lead">Manage users, plans, and all jobs.</p>
+</header>
+
+<section class="card">
+  <h2>Pending upgrade requests</h2>
+  {% if upgrade_requests %}
+  <div class="table-wrap mt">
+    <table class="tbl small">
+      <thead>
+        <tr><th>ID</th><th>Email</th><th>Plan</th><th>Note</th><th>When</th><th>Activate</th></tr>
+      </thead>
+      <tbody>
+        {% for r in upgrade_requests %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.email }}</td>
+          <td><span class="plan-badge {{ r.plan }}">{{ r.plan }}</span></td>
+          <td class="muted small">{{ r.transfer_note or '—' }}</td>
+          <td class="muted small">{{ r.created_at[:16] }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin_set_plan', user_id=r.user_id) }}" class="inline-form" style="display:flex;gap:0.35rem;align-items:center">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}"/>
+              <input type="hidden" name="plan" value="{{ r.plan }}"/>
+              <input type="hidden" name="upgrade_request_id" value="{{ r.id }}"/>
+              <button type="submit" class="btn primary small-btn">Enable {{ r.plan }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No pending requests.</p>
+  {% endif %}
+</section>
+
+<section class="card mt">
+  <h2>Users</h2>
+  <div class="table-wrap mt">
+    <table class="tbl">
+      <thead>
+        <tr><th>ID</th><th>Email</th><th>Plan</th><th>Role</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.email }}</td>
+          <td><span class="plan-badge">{{ u.plan }}</span></td>
+          <td>{{ u.role }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin_set_plan', user_id=u.id) }}" class="inline-form" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}"/>
+              <select name="plan" style="width:auto;margin:0;padding:0.4rem 0.6rem">
+                <option value="free" {% if u.plan=='free' %}selected{% endif %}>free</option>
+                <option value="pro" {% if u.plan=='pro' %}selected{% endif %}>pro</option>
+                <option value="vip" {% if u.plan=='vip' %}selected{% endif %}>vip</option>
+              </select>
+              <button type="submit" class="btn secondary small-btn">Save plan</button>
+              {% if (u.email_verified|default(1))|int == 0 %}
+              <button type="submit" formaction="{{ url_for('admin_verify_user_email', user_id=u.id) }}" class="btn ghost small-btn">✓ Email</button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card mt">
+  <h2>System jobs</h2>
+  <div class="table-wrap mt">
+    <table class="tbl small">
+      <thead>
+        <tr><th>Job</th><th>User</th><th>Status</th><th>Source</th><th>Time</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td><code>{{ j.id[:22] }}…</code></td>
+          <td>{{ j.email }}</td>
+          <td><span class="status {{ j.status }}">{{ j.status }}</span></td>
+          <td>{{ j.source }}</td>
+          <td class="muted small">{{ j.created_at }}</td>
+          <td><a href="{{ url_for('job_detail', job_id=j.id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

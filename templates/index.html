@@ -1,0 +1,348 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Create product report</h1>
+  <p class="lead">Pick keywords → create report → download results (5–15 min).</p>
+</header>
+
+{% include "_onboarding_banner.html" %}
+
+<div class="stats-row">
+  <div class="stat-card highlight">
+    <div class="label">Your plan</div>
+    <div class="value" style="text-transform:capitalize">{{ current_user.plan }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Scans today</div>
+    <div class="value">{{ scans_today }}<span class="muted small"> / {{ limits.scans_per_day }}</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Market</div>
+    <div class="value" style="font-size:1.1rem">US · VN</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Keywords / scan</div>
+    <div class="value" style="font-size:1.1rem">≤ {{ limits.keywords_max }}</div>
+  </div>
+</div>
+
+<p class="muted small" style="margin-bottom:1rem">
+  <strong>{{ current_user.plan }} plan:</strong>
+  {{ limits.scans_per_day }} scans/day ·
+  up to {{ limits.keywords_max }} keywords/scan ·
+  {% if limits.tiktok %}TikTok ≤ {{ limits.tiktok_max }} products{% else %}no TikTok{% endif %} ·
+  {% if limits.google_trends %}Google Trends ≤ {{ limits.gt_max }} products{% else %}no Trends{% endif %}
+  · <a href="{{ url_for('pricing_page') }}">Compare plans &amp; upgrade</a>
+</p>
+
+{% if current_user.plan == 'free' %}
+<div class="card upgrade-banner" style="margin-bottom:1rem;padding:1rem 1.25rem">
+  <strong>Free:</strong> TikTok and Google Trends not included.
+  <a href="{{ url_for('checkout', plan='pro') }}" class="btn primary small-btn" style="margin-left:0.5rem">Upgrade to Pro — {{ plan_prices.pro }} →</a>
+</div>
+{% elif current_user.plan == 'pro' %}
+<div class="card upgrade-banner" style="margin-bottom:1rem;padding:1rem 1.25rem">
+  <strong>Pro:</strong> TikTok included. Want <strong>Google Trends</strong>?
+  <a href="{{ url_for('checkout', plan='vip') }}" class="btn secondary small-btn" style="margin-left:0.5rem">Upgrade to VIP →</a>
+</div>
+{% endif %}
+
+<section class="grid2">
+  <div class="card">
+    {% if saas_mode %}
+    <div class="connect-banner saas">
+      <div class="left">
+        <span class="status-dot ok"></span>
+        <div>
+          <strong>Cloud scanning</strong>
+          <span id="cdp-hint">Just pick keywords and create a report — no Chrome setup needed.</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="connect-banner">
+      <div class="left">
+        <span class="status-dot" id="cdp-dot"></span>
+        <div>
+          <strong>Connect Chrome (dev / self-host only)</strong>
+          <span id="cdp-hint">Run start_chrome_debug.bat → Check connection</span>
+        </div>
+      </div>
+      <button type="button" class="btn secondary" id="btn-cdp">Check connection</button>
+    </div>
+    {% endif %}
+
+    <form action="{{ url_for('scan') }}" method="post" class="form">
+      {% include "_csrf.html" %}
+      <div class="form-grid">
+        <label>Market
+          <select name="country">
+            <option value="US" selected>United States (US)</option>
+            <option value="VN">Vietnam (VN)</option>
+            <option value="ALL">All</option>
+          </select>
+        </label>
+        <label>Keyword preset
+          <select name="preset">
+            {% for p in presets %}
+            <option value="{{ p }}" {% if p == 'cleaning_us' %}selected{% endif %}>{{ preset_labels.get(p, p) }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="full">Custom keywords <span class="hint">(up to <strong>{{ limits.keywords_max }}</strong> lines per scan)</span>
+          <textarea name="keywords" rows="3" placeholder="First-time suggestions: magnetic eyelash kit&#10;portable blender&#10;Avoid single broad terms (cleaning, beauty) with strict Winner preset."></textarea>
+        </label>
+
+        <div class="adspy-filter-panel full">
+          <div class="adspy-filter-head">
+            <strong>Smart filters</strong>
+            <span class="muted small">AdSpy-style — filter after scan &amp; scoring</span>
+          </div>
+          <div class="adspy-filter-grid">
+            <label class="adspy-field span2">
+              <span class="adspy-label">Ad Text / keywords</span>
+              <span class="hint">Use the "Custom keywords" field above — one line = one FB search</span>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Media type</span>
+              <select name="filter_media">
+                <option value="any" selected>All</option>
+                <option value="video">Video</option>
+                <option value="image">Image</option>
+              </select>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Technologies</span>
+              <select name="filter_tech">
+                <option value="any" selected>All</option>
+                <option value="shopify">Shopify / DTC</option>
+              </select>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Seen ≥ (days running)</span>
+              <input type="number" name="filter_min_days" min="0" max="999" placeholder="e.g. 7"/>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Seen ≤ (days)</span>
+              <input type="number" name="filter_max_days" min="0" max="999" placeholder="e.g. 30"/>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Total ads ≥</span>
+              <input type="number" name="filter_min_ads" min="0" max="999" placeholder="e.g. 5"/>
+            </label>
+            <label class="adspy-field">
+              <span class="adspy-label">Sort by</span>
+              <select name="filter_sort">
+                <option value="score" selected>Winner score</option>
+                <option value="ads">Most ads</option>
+                <option value="days">Longest running</option>
+                <option value="creative">Most creatives</option>
+              </select>
+            </label>
+            <label class="adspy-field adspy-check">
+              <input type="checkbox" name="filter_product_only"/>
+              <span>Product pages only</span>
+            </label>
+            <label class="adspy-field adspy-check">
+              <input type="checkbox" name="filter_no_marketplace"/>
+              <span>Exclude marketplaces (Amazon, Shopee…)</span>
+            </label>
+          </div>
+          <p class="adspy-unavailable muted small">
+            <span class="adspy-pill disabled">Gender</span>
+            <span class="adspy-pill disabled">Daily likes</span>
+            <span class="adspy-pill disabled">Affiliate</span>
+            <span class="adspy-pill disabled">Networks</span>
+            — FB Ads Library does not expose these fields (AdSpy has a proprietary database).
+          </p>
+          <div class="filter-preset-block">
+            <span class="filter-preset-label">Quick presets</span>
+            <div class="filter-preset-grid">
+              {% for fp in filter_presets %}
+              <label class="filter-preset-card {% if fp.id == default_filter_preset %}selected{% endif %}">
+                <input type="radio" name="filter_preset" value="{{ fp.id }}" {% if fp.id == default_filter_preset %}checked{% endif %}/>
+                <strong>{{ fp.title }}</strong>
+                <span class="muted small">{{ fp.hint }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        {% if limits.tiktok %}
+        <label class="check full">
+          <input type="checkbox" name="tiktok"/>
+          Check TikTok (Pro/VIP — server-side scan)
+        </label>
+        <label>Products to check on TikTok (max {{ limits.tiktok_max }})
+          <input type="number" name="tiktok_limit" value="{% if limits.tiktok_max > 15 %}15{% else %}{{ limits.tiktok_max }}{% endif %}" min="1" max="{{ limits.tiktok_max }}" step="1"/>
+        </label>
+        {% else %}
+        <p class="muted small">TikTok available on <strong>Pro/VIP</strong> only. <a href="{{ url_for('pricing_page') }}">View pricing &amp; upgrade</a></p>
+        {% endif %}
+        {% if limits.google_trends %}
+        <label class="check full">
+          <input type="checkbox" name="google_trends"/>
+          Google Trends (VIP)
+        </label>
+        <label>Products to check on Trends (max {{ limits.gt_max }})
+          <input type="number" name="gt_limit" value="{% if limits.gt_max > 15 %}15{% else %}{{ limits.gt_max }}{% endif %}" min="1" max="{{ limits.gt_max }}" step="1"/>
+        </label>
+        {% endif %}
+        <label>Scroll rounds (max {{ limits.scroll_max }})
+          <input type="number" name="scroll" value="{{ 8 if limits.scroll_max >= 8 else limits.scroll_max }}" min="3" max="{{ limits.scroll_max }}" step="1"/>
+        </label>
+      </div>
+
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <div class="advanced-body form-grid">
+          <label>Top results to show
+            <input type="number" name="top" value="20" min="5" max="50"/>
+          </label>
+          <label class="full">Browser URL (CDP)
+            <input type="text" name="cdp" value="{{ cdp_default }}"/>
+          </label>
+          <label class="check full">
+            <input type="checkbox" name="from_raw"/>
+            Rescore from raw_ads.csv only (skip FB scan)
+          </label>
+        </div>
+      </details>
+
+      <button type="submit" class="btn primary btn-lg" id="btn-scan" {% if scans_today >= limits.scans_per_day %}disabled{% endif %}>
+        Start report
+      </button>
+      <p id="scan-hint" class="muted small" style="margin-top:0.5rem;display:none"></p>
+      {% if scans_today >= limits.scans_per_day %}
+      <p class="err-text">Daily scan limit reached. Upgrade to Pro or try again tomorrow.</p>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="card steps-card trust-side-card">
+    <h2>Quick guide</h2>
+    <ol class="step-list">
+      <li>
+        <span class="step-num">1</span>
+        <span>{% if saas_mode %}Pick keywords + market{% else %}Chrome debug + log into Facebook{% endif %}</span>
+      </li>
+      <li>
+        <span class="step-num">2</span>
+        <span><strong>Start report</strong> — wait 5–15 min</span>
+      </li>
+      <li>
+        <span class="step-num">3</span>
+        <span>Download CSV or <strong>HTML report</strong></span>
+      </li>
+    </ol>
+    <p class="muted small" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      Each scan usually takes 5–15 min. <strong>scored.csv</strong> is always available after the FB scan completes.
+    </p>
+    {% if support_zalo_url %}
+    <p style="margin-top:0.75rem">
+      <a href="{{ support_zalo_url }}" class="btn secondary small-btn" target="_blank" rel="noopener">💬 Contact support ({{ support_hours }})</a>
+    </p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card mt">
+  <div class="card-head">
+    <h2>Report history</h2>
+  </div>
+  {% if not jobs %}
+  <div class="empty-state">
+    <p><strong>No reports yet</strong></p>
+    <p class="small">Complete your first scan to see the list here.</p>
+  </div>
+  {% else %}
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead>
+        <tr><th>Report</th><th>Status</th><th>Market</th><th>Time</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td><code>{{ j.id[:20] }}…</code></td>
+          <td><span class="status {{ j.status }}">{{ j.status }}</span></td>
+          <td>{{ j.opts.country if j.opts else '—' }}</td>
+          <td class="muted small">{{ j.created_at }}</td>
+          <td><a href="{{ url_for('job_detail', job_id=j.id) }}">View →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const btnCdp = document.getElementById('btn-cdp');
+  const btnScan = document.getElementById('btn-scan');
+  const form = btnScan?.closest('form');
+  let cdpOk = false;
+
+  async function runCdpCheck() {
+    const cdp = document.querySelector('input[name=cdp]')?.value || 'http://127.0.0.1:9222';
+    const dot = document.getElementById('cdp-dot');
+    const hint = document.getElementById('cdp-hint');
+    btnCdp.disabled = true;
+    hint.textContent = 'Checking…';
+    dot.className = 'status-dot';
+    try {
+      const res = await fetch('{{ url_for("api_cdp_check") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cdp})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        cdpOk = true;
+        dot.className = 'status-dot ok';
+        hint.textContent = 'Connected — ready to create report';
+      } else {
+        cdpOk = false;
+        dot.className = 'status-dot err';
+        hint.textContent = data.message || 'Not connected — run start_chrome_debug.bat';
+      }
+    } catch (e) {
+      cdpOk = false;
+      dot.className = 'status-dot err';
+      hint.textContent = 'Network error — is the web server running?';
+    }
+    btnCdp.disabled = false;
+  }
+
+  btnCdp?.addEventListener('click', runCdpCheck);
+  if (btnCdp) runCdpCheck();
+  else { cdpOk = true; }
+
+  form?.addEventListener('submit', (ev) => {
+    const fromRaw = form.querySelector('input[name=from_raw]')?.checked;
+    if (!fromRaw && !cdpOk) {
+      ev.preventDefault();
+      const h = document.getElementById('scan-hint');
+      if (h) {
+        h.style.display = 'block';
+        h.className = 'err-text small';
+        h.textContent = 'Chrome not connected. Run start_chrome_debug.bat, click Check connection (green dot), then try again.';
+      }
+      return;
+    }
+    const h = document.getElementById('scan-hint');
+    if (h) {
+      h.style.display = 'block';
+      h.className = 'muted small';
+      h.textContent = 'Creating job… redirecting shortly.';
+    }
+    if (btnScan) btnScan.disabled = true;
+  });
+})();
+</script>
+{% endblock %}

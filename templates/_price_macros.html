@@ -1,0 +1,7 @@
+{% macro plan_price_block(plan) %}
+{% if launch_promo %}<span class="early-bird-tag">Early beta pricing</span>{% endif %}
+{% if launch_promo and plan_prices_strike.get(plan) %}
+<div class="price-strike">{{ plan_prices_strike[plan] }}</div>
+{% endif %}
+<div class="price">{{ plan_prices.get(plan, 'Contact us') }}<span>{{ plan_price_period }}</span></div>
+{% endmacro %}

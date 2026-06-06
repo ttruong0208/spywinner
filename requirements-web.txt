@@ -1,0 +1,6 @@
+flask>=3.0.0
+flask-login>=0.6.3
+werkzeug>=3.0.0
+apscheduler>=3.10.0
+playwright>=1.40.0
+pytrends>=4.9.0

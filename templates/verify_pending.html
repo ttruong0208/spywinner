@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}Verify email — WinnerSpy{% endblock %}
+{% block content %}
+<section class="card verify-pending-card" style="max-width:520px;margin:2rem auto">
+  <header class="page-header" style="margin-bottom:1rem">
+    <p class="eyebrow">Required step</p>
+    <h1>Verify email</h1>
+    <p class="lead">You must verify <strong>{{ email }}</strong> before accessing the product research tool.</p>
+  </header>
+
+  <ol class="verify-steps">
+    <li>Check your inbox (including <strong>Spam / Promotions</strong>)</li>
+    <li>Click <strong>Verify email</strong> in the WinnerSpy message</li>
+    <li>Return here — you'll be redirected to the dashboard</li>
+  </ol>
+
+  <form method="post" action="{{ url_for('resend_verification') }}" style="margin-top:1.25rem">
+    {% include "_csrf.html" %}
+    <button type="submit" class="btn primary btn-lg" style="width:100%">Resend verification email</button>
+  </form>
+
+  {% if not smtp_ok and dev_verify_url %}
+  <div class="flash warn" style="margin-top:1.25rem">
+    <strong>Dev mode</strong> — SMTP not configured. Use this link to activate:
+    <p style="margin:0.5rem 0 0;word-break:break-all">
+      <a href="{{ dev_verify_url }}">{{ dev_verify_url }}</a>
+    </p>
+  </div>
+  {% elif not smtp_ok %}
+  <p class="muted small" style="margin-top:1rem">
+    Admin has not configured email delivery. Set <code>WINNERSPY_SMTP_*</code> or temporarily <code>WINNERSPY_SKIP_EMAIL_VERIFY=1</code> for dev.
+  </p>
+  {% endif %}
+
+  <p class="muted small" style="margin-top:1.5rem;text-align:center">
+    <a href="{{ url_for('logout') }}">Log out</a> · use a different email
+    {% if support_zalo_url %} · <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a>{% endif %}
+  </p>
+</section>
+{% endblock %}

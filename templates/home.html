@@ -1,0 +1,380 @@
+{% extends "public_base.html" %}
+{% block title %}WinnerSpy — Find winning products from Facebook Ads{% endblock %}
+{% block body %}
+{% from "_price_macros.html" import plan_price_block with context %}
+
+<section class="landing-hero">
+  <div>
+    <span class="hero-badge">Web platform · Dropship &amp; media buyers</span>
+    <h1>Find products with <em>strong ad traction</em></h1>
+    <p class="hero-lead">
+      {{ positioning_line }}
+    </p>
+    <div class="hero-trust-row">
+      <span class="trust-pill">✓ Real Facebook Ads Library data</span>
+      <span class="trust-pill">✓ HTML + CSV reports</span>
+      <span class="trust-pill">✓ 5 free scans/day</span>
+    </div>
+    <div class="hero-cta">
+      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary btn-lg">Start free trial</a>
+      <a href="{{ url_for('login') }}" class="btn secondary btn-lg">Log in</a>
+    </div>
+    <p class="muted small" style="margin-top:1rem">No credit card required · No install · {% if support_zalo_url %}<a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a>{% endif %}</p>
+  </div>
+  <div class="hero-visual">
+    <div class="mock-card">
+      <span class="mock-score">68</span>
+      <div class="label">Winner</div>
+      <div class="title">Cleaning toothbrush kit</div>
+      <div class="meta">33 ads · US</div>
+    </div>
+    <div class="mock-card">
+      <span class="mock-score">65</span>
+      <div class="label">Winner</div>
+      <div class="title">Flat mop system</div>
+      <div class="meta">108 ads · TikTok OK</div>
+    </div>
+    <div class="mock-card" style="opacity:0.85">
+      <div class="label">Export</div>
+      <div class="title">HTML + Excel report</div>
+      <div class="meta">Download right after scan completes</div>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section" id="how-it-works">
+  <div class="section-head">
+    <h2>Up and running in 4 steps</h2>
+    <p>100% web-based — no software to install</p>
+  </div>
+  <div class="steps-row">
+    <div class="step-card">
+      <div class="num">1</div>
+      <h3>Create an account</h3>
+      <p>Sign up free or log in.</p>
+    </div>
+    <div class="step-card">
+      <div class="num">2</div>
+      <h3>Pick your market</h3>
+      <p>US, EU, or any niche keywords you want to research.</p>
+    </div>
+    <div class="step-card">
+      <div class="num">3</div>
+      <h3>Run a report</h3>
+      <p>We scan Facebook Ads Library and score products for you.</p>
+    </div>
+    <div class="step-card">
+      <div class="num">4</div>
+      <h3>Download results</h3>
+      <p>Excel + visual report — ready to test products or share with your team.</p>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section alt" id="features">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2>What you get</h2>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-box">
+        <div class="icon">📊</div>
+        <h3>Bulk scanning</h3>
+        <p>Collect ads by keyword — no more scrolling Ads Library manually for hours.</p>
+      </div>
+      <div class="feature-box">
+        <div class="icon">🏆</div>
+        <h3>Winner score</h3>
+        <p>Rank products by ad count, campaign longevity, and creative signals.</p>
+      </div>
+      <div class="feature-box">
+        <div class="icon">🎵</div>
+        <h3>TikTok</h3>
+        <p>Surface products with TikTok traction (plan-dependent).</p>
+      </div>
+      <div class="feature-box">
+        <div class="icon">📄</div>
+        <h3>Polished reports</h3>
+        <p>Export HTML + CSV — open, review, and share with clients or your team instantly.</p>
+      </div>
+      <div class="feature-box">
+        <div class="icon">⏰</div>
+        <h3>Scheduled scans</h3>
+        <p>Run scans every morning — fresh reports waiting when you log in (Pro plan).</p>
+      </div>
+      <div class="feature-box">
+        <div class="icon">👥</div>
+        <h3>Multi-user ready</h3>
+        <p>Each user gets their own quota — ideal for agencies and client teams.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section alt">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2>Who is it for?</h2>
+    </div>
+    <div class="audience-grid">
+      <div class="audience-item">
+        <span>🛒</span>
+        <div>
+          <strong>Dropship / POD</strong>
+          <span>Find products competitors are actively spending on — test faster.</span>
+        </div>
+      </div>
+      <div class="audience-item">
+        <span>📢</span>
+        <div>
+          <strong>Media buyers</strong>
+          <span>Cut research time before launching campaigns.</span>
+        </div>
+      </div>
+      <div class="audience-item">
+        <span>🏪</span>
+        <div>
+          <strong>Shop / brand owners</strong>
+          <span>Enter new niches with lists that include landing links and ad counts.</span>
+        </div>
+      </div>
+      <div class="audience-item">
+        <span>👥</span>
+        <div>
+          <strong>Ecom communities</strong>
+          <span>Share niche reports with members (multi-user support).</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section" id="compare">
+  <div class="section-inner compare-section">
+    <div class="section-head">
+      <h2>Compared to AdSpy, Minea, BigSpy…</h2>
+      <p>
+        Global tools offer massive ad databases but typically run <strong>$49–$149/month</strong>.
+        WinnerSpy is built for dropshippers and media buyers who want <strong>affordable beta pricing</strong>, keyword-driven scans, and clear, actionable reports.
+      </p>
+    </div>
+
+    <div class="compare-highlight">
+      <div class="compare-us">
+        <span class="compare-us-label">WinnerSpy</span>
+        <strong>{{ plan_prices.pro }}</strong><span class="muted small">{{ plan_price_period }}</span>
+        <p class="muted small">Pro — a fraction of AdSpy's ~$149/month · Free tier to try first</p>
+      </div>
+      <div class="compare-them muted small">
+        Market reference: <strong>AdSpy</strong> ~$149/mo · <strong>Minea</strong> ~$49–99/mo · <strong>BigSpy</strong> limited free tier
+      </div>
+    </div>
+
+    <div class="table-wrap compare-table-wrap">
+      <table class="tbl compare-rivals">
+        <thead>
+          <tr>
+            <th></th>
+            <th>AdSpy</th>
+            <th>Minea</th>
+            <th>BigSpy</th>
+            <th class="col-ws">WinnerSpy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Strengths</td>
+            <td>Deep Meta focus, ~200M+ ad archive</td>
+            <td>AI "win product" picks, TikTok + Pinterest</td>
+            <td>Multi-platform, ~1B+ sample archive</td>
+            <td class="col-ws"><strong>Live keyword scans</strong> + scoring + exportable reports</td>
+          </tr>
+          <tr>
+            <td>Reference pricing</td>
+            <td>~$149/month</td>
+            <td>~$49–99/month</td>
+            <td>Limited free + paid tiers</td>
+            <td class="col-ws"><strong>Free</strong> · Pro <strong>{{ plan_prices.pro }}</strong></td>
+          </tr>
+          <tr>
+            <td>Facebook Ads</td>
+            <td>✓</td><td>✓</td><td>✓</td><td class="col-ws">✓ (Ads Library)</td>
+          </tr>
+          <tr>
+            <td>TikTok</td>
+            <td>—</td><td>✓</td><td>Partial</td><td class="col-ws">✓ (Pro/VIP, product limits)</td>
+          </tr>
+          <tr>
+            <td>Pinterest</td>
+            <td>—</td><td>✓</td><td>✓</td><td class="col-ws">— <span class="muted">(not yet)</span></td>
+          </tr>
+          <tr>
+            <td>Google Trends</td>
+            <td>—</td><td>Partial</td><td>—</td><td class="col-ws">✓ (VIP)</td>
+          </tr>
+          <tr>
+            <td>Shop revenue estimates</td>
+            <td>—</td><td>Partial</td><td>—</td>
+            <td class="col-ws">— <span class="muted">(WinningHunter/Trendtrack do this better)</span></td>
+          </tr>
+          <tr>
+            <td>Data approach</td>
+            <td>Large stored archive</td><td>Archive + AI</td><td>Stored archive</td>
+            <td class="col-ws"><strong>Fresh data every scan</strong> for your keywords</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="compare-disclaimer muted small">
+      Comparison is directional — competitor pricing and features may change.
+      WinnerSpy does <strong>not</strong> claim "200 million ads in our database." Instead, we scan the niches you care about and deliver scored lists with landing links.
+      Best for anyone who wants <em>fast research at a lower cost</em> before committing to a $50–$150/month global tool.
+    </p>
+
+    <div class="compare-cta">
+      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary">Try Free — compare yourself</a>
+      <a href="{{ url_for('choose_plan', plan='pro') }}" class="btn secondary">Upgrade to Pro {{ plan_prices.pro }}</a>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section" id="pricing">
+  <div class="section-head">
+    <h2>Pricing</h2>
+    <p>Start free{% if launch_promo %} — <strong class="early-bird-inline">{{ launch_promo_note }}</strong>{% else %}, upgrade when you need more scans{% endif %}</p>
+  </div>
+  <div class="pricing-grid" style="grid-template-columns:repeat(3,1fr);max-width:960px;margin:0 auto">
+    <div class="price-card">
+      <h3>Free</h3>
+      <div class="price">$0</div>
+      <ul>
+        <li>5 scans / day</li>
+        <li>Up to <strong>3 keywords</strong> / scan</li>
+        <li>Facebook Ads + reports</li>
+        <li>No TikTok / Trends</li>
+      </ul>
+      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn secondary" style="width:100%">Use Free</a>
+    </div>
+    <div class="price-card featured">
+      <h3>Pro</h3>
+      {{ plan_price_block('pro') }}
+      <ul>
+        <li>40 scans / day</li>
+        <li>12 keywords / scan</li>
+        <li><strong>TikTok</strong> (up to 15 products)</li>
+        <li>API + scheduled scans</li>
+      </ul>
+      <a href="{{ url_for('choose_plan', plan='pro') }}" class="btn primary" style="width:100%">Upgrade to Pro</a>
+    </div>
+    <div class="price-card">
+      <h3>VIP</h3>
+      {{ plan_price_block('vip') }}
+      <ul>
+        <li><strong>200</strong> scans / day</li>
+        <li><strong>30</strong> keywords / scan</li>
+        <li>TikTok up to <strong>50</strong> products / report</li>
+        <li>Google Trends up to <strong>30</strong> products</li>
+      </ul>
+      <a href="{{ url_for('choose_plan', plan='vip') }}" class="btn secondary" style="width:100%">Upgrade to VIP</a>
+    </div>
+  </div>
+  <p class="muted small" style="text-align:center;margin-top:1rem">
+    TikTok/Trends limits apply per product count (not truly unlimited). After signup: manage upgrades from <strong>Pricing</strong> in the app.
+  </p>
+</section>
+
+<section class="landing-section" id="trust">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2>Why trust WinnerSpy?</h2>
+      <p class="muted">Transparent — we don't promise guaranteed winners or claim to be an AdSpy clone</p>
+    </div>
+    <div class="trust-grid">
+      <div class="trust-card">
+        <h3>Real results, never empty silence</h3>
+        <p>Every scan gives you <strong>scored.csv</strong> (all scored products) plus an ad library. Strict filters may yield 0 winners — you still get the full data.</p>
+      </div>
+      <div class="trust-card">
+        <h3>Clear payment process</h3>
+        <p>{{ beta_guarantee }}</p>
+      </div>
+      <div class="trust-card">
+        <h3>Real human support</h3>
+        <p>
+          {% if support_zalo_url %}
+          <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a> with your email and job ID if you're stuck — {{ support_hours }}.
+          {% else %}
+          Reach us via the checkout page after signup.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="social-proof-row">
+      <blockquote class="proof-quote">
+        <p>"Saved hours scrolling Ads Library — scored results and files I could send to my team immediately."</p>
+        <cite>— Beta user, dropshipper</cite>
+      </blockquote>
+      <blockquote class="proof-quote">
+        <p>"Pro pricing fits a small agency budget better than overseas tools — enough to test multiple niches."</p>
+        <cite>— Media buyer</cite>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section alt" id="faq">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2>Frequently asked questions</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <strong>Scan finished but no products showed up?</strong>
+        <p>
+          Facebook ads are still captured (see <code>raw_ads.csv</code>). The <strong>Strict winner</strong> filter with broad keywords (e.g. "cleaning") may return
+          <em>0 qualifying products</em> — that's normal. Use the <strong>Balanced</strong> preset or review the <strong>scored</strong> table in your job.
+        </p>
+      </div>
+      <div class="faq-item">
+        <strong>How do I pay for Pro/VIP?</strong>
+        <p>Pay in <strong>USD</strong> via PayPal, Wise, USDT, or our checkout link — include your payment reference. We activate within 24 hours. No hidden card charges.</p>
+      </div>
+      <div class="faq-item">
+        <strong>How is this different from AdSpy / Minea / BigSpy?</strong>
+        <p>
+          They offer massive ad archives and multiple platforms (Minea includes Pinterest), typically $50–$149/month.
+          WinnerSpy focuses on <strong>keyword-driven Facebook scans</strong>, product scoring, TikTok/Trends on higher plans, and affordable pricing — see the
+          <a href="#compare">comparison table above</a>.
+        </p>
+      </div>
+      <div class="faq-item">
+        <strong>Does it estimate shop revenue like WinningHunter?</strong>
+        <p>Not yet. We focus on ad signals (volume, campaign longevity, creative). Shop revenue estimates may come in a future release.</p>
+      </div>
+      <div class="faq-item">
+        <strong>Do you guarantee bestsellers?</strong>
+        <p>No. WinnerSpy surfaces <em>signals from real ads</em> — you still need to test products and creatives yourself.</p>
+      </div>
+      <div class="faq-item">
+        <strong>Do I need to install software?</strong>
+        <p>No. Just a browser (Chrome, Edge, Safari…) and a WinnerSpy account.</p>
+      </div>
+      <div class="faq-item">
+        <strong>How long does a scan take?</strong>
+        <p>Usually 5–15 minutes depending on volume. Track progress live in the web app.</p>
+      </div>
+      <div class="faq-item">
+        <strong>Why not just browse Ads Library myself?</strong>
+        <p>We aggregate products, score them, and export reports — saving hours every week.</p>
+      </div>
+    </div>
+    <div class="cta-band">
+      <h2>Try it today</h2>
+      <p>Free · No credit card required</p>
+      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary btn-lg">Create account</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "layout.html" %}
+{% block title %}Ad library — {{ job.id[:16] }}…{% endblock %}
+{% block content %}
+<header class="page-header gallery-page-head">
+  <div>
+    <a href="{{ url_for('job_detail', job_id=job.id) }}" class="back-link" style="margin:0 0 0.5rem">← Report details</a>
+    <h1>Ad gallery</h1>
+    <p class="lead">AdSpy-style — {{ ads|length }} ads · market <strong>{{ country_label }}</strong></p>
+  </div>
+  <div class="actions">
+    <select id="gal-sort" class="gal-toolbar-select">
+      <option value="days">Days running (longest first)</option>
+      <option value="recent">Recently scraped (default)</option>
+      <option value="winner">Winner score</option>
+    </select>
+    <button type="button" class="btn secondary" id="gal-apply">Filter</button>
+  </div>
+</header>
+
+<section class="card gallery-toolbar">
+  <div class="gallery-toolbar-grid">
+    <label>
+      <span class="adspy-label">Search ad text</span>
+      <input type="search" id="gal-q" placeholder="Text in body, page, domain…"/>
+    </label>
+    <label>
+      <span class="adspy-label">Media</span>
+      <select id="gal-media">
+        <option value="any">All</option>
+        <option value="video">Video</option>
+        <option value="image">Image</option>
+      </select>
+    </label>
+    <label>
+      <span class="adspy-label">Running ≥ days</span>
+      <input type="number" id="gal-min-days" min="0" value="0" style="width:5rem"/>
+    </label>
+    <label class="gal-check">
+      <input type="checkbox" id="gal-winners"/>
+      <span>Winner-scored products only</span>
+    </label>
+  </div>
+  <p class="muted small" style="margin:0.5rem 0 0">
+    FB likes/comments are not public via Ads Library — WinnerSpy shows: page, copy, creative, days running, landing link, winner score.
+  </p>
+</section>
+
+{% if not ads %}
+<section class="card empty-state">
+  <p><strong>No raw_ads.csv yet</strong></p>
+  <p class="small">Job not finished or failed — return to <a href="{{ url_for('job_detail', job_id=job.id) }}">report details</a>.</p>
+</section>
+{% else %}
+<div class="ad-gallery-grid" id="ad-gallery">
+  {% for ad in ads %}
+  <article
+    class="ad-gallery-card"
+    data-days="{{ ad.days }}"
+    data-score="{{ ad.win_score or 0 }}"
+    data-media="{{ ad.media_type }}"
+    data-winner="{{ '1' if ad.is_winner else '0' }}"
+    data-search="{{ (ad.body ~ ' ' ~ ad.page ~ ' ' ~ ad.product ~ ' ' ~ ad.domain)|lower }}"
+  >
+    <header class="ad-card-head">
+      <span class="ad-fb-icon" title="Facebook">f</span>
+      <div class="ad-card-page">
+        <strong title="{{ ad.page }}">{{ ad.page[:42] }}{% if ad.page|length > 42 %}…{% endif %}</strong>
+        <span class="muted small">ID {{ ad.id[:12] }}…</span>
+      </div>
+      {% if ad.is_winner %}
+      <span class="ad-winner-badge" title="Winner product">{{ ad.win_score }} pts</span>
+      {% endif %}
+    </header>
+    <p class="ad-card-dates muted small">
+      {% if ad.started_label %}Started {{ ad.started_label }}{% else %}Still active{% endif %}
+      · Last seen {{ ad.last_seen }}
+    </p>
+    <p class="ad-card-copy">{{ ad.body[:280] }}{% if ad.body|length > 280 %}…{% endif %}</p>
+    <div class="ad-card-media {% if not ad.media_url %}no-media{% endif %}">
+      {% if ad.media_url %}
+      <img src="{{ ad.media_url }}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add('broken');"/>
+      {% if ad.media_type == 'video' %}<span class="ad-media-tag">Video</span>{% endif %}
+      {% else %}
+      <div class="ad-media-placeholder">
+        <span>{{ ad.product[:40] if ad.product not in ['unknown','none'] else 'Creative' }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="ad-card-landing">
+      <strong class="ad-headline">{{ ad.headline }}</strong>
+      {% if ad.domain and ad.domain != 'unknown' %}
+      <span class="muted small">{{ ad.domain }}</span>
+      {% endif %}
+    </div>
+    <footer class="ad-card-foot">
+      <span class="ad-cta-pill">{{ ad.cta }}</span>
+      <span class="ad-country" title="Scrape market">🌐 {{ ad.country }}</span>
+      {% if ad.label %}<span class="label-tag">{{ ad.label }}</span>{% endif %}
+      <div class="ad-card-links">
+        {% if ad.landing_url %}
+        <a href="{{ ad.landing_url }}" target="_blank" rel="noopener noreferrer">Landing</a>
+        {% endif %}
+        <a href="{{ ad.library_url }}" target="_blank" rel="noopener noreferrer">Ads Library</a>
+      </div>
+    </footer>
+  </article>
+  {% endfor %}
+</div>
+<p id="gal-empty" class="muted small" style="display:none;text-align:center;padding:2rem">No ads match the current filters.</p>
+<p class="muted small" style="text-align:center">Showing up to 180 ads per scan. Rescan with more scroll rounds to load more.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if ads %}
+<script>
+(function () {
+  const grid = document.getElementById("ad-gallery");
+  const empty = document.getElementById("gal-empty");
+  const cards = () => Array.from(grid.querySelectorAll(".ad-gallery-card"));
+
+  function apply() {
+    const q = (document.getElementById("gal-q").value || "").trim().toLowerCase();
+    const media = document.getElementById("gal-media").value;
+    const minDays = +document.getElementById("gal-min-days").value || 0;
+    const winnersOnly = document.getElementById("gal-winners").checked;
+    const sort = document.getElementById("gal-sort").value;
+    let list = cards();
+    list = list.filter((el) => {
+      if (winnersOnly && el.dataset.winner !== "1") return false;
+      if (minDays && (+el.dataset.days || 0) < minDays) return false;
+      if (media === "video" && el.dataset.media !== "video") return false;
+      if (media === "image" && el.dataset.media === "video") return false;
+      if (q && !(el.dataset.search || "").includes(q)) return false;
+      return true;
+    });
+    if (sort === "days") {
+      list.sort((a, b) => (+b.dataset.days || 0) - (+a.dataset.days || 0));
+    } else if (sort === "winner") {
+      list.sort((a, b) => (+b.dataset.score || 0) - (+a.dataset.score || 0));
+    }
+    cards().forEach((el) => { el.style.display = "none"; });
+    list.forEach((el) => {
+      el.style.display = "";
+      grid.appendChild(el);
+    });
+    empty.style.display = list.length ? "none" : "block";
+  }
+
+  document.getElementById("gal-apply").addEventListener("click", apply);
+  ["gal-q", "gal-media", "gal-min-days", "gal-winners", "gal-sort"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", apply);
+    document.getElementById(id).addEventListener("input", apply);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

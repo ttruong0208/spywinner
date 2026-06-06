@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+{% block title %}Pricing &amp; upgrade — WinnerSpy{% endblock %}
+{% block content %}
+{% from "_price_macros.html" import plan_price_block with context %}
+<header class="page-header">
+  <h1>Pricing &amp; upgrade</h1>
+  <p class="lead">You're on the <span class="plan-badge {{ current_plan }}">{{ current_plan }}</span> plan — compare options and pick what fits.
+  {% if launch_promo %}<span class="early-bird-inline">{{ launch_promo_note }}</span>{% endif %}</p>
+</header>
+
+{% if current_plan == 'free' or current_plan == 'pro' %}
+<section class="card upgrade-cta">
+  <h2>Ready to upgrade?</h2>
+  <p>Choose a plan and complete payment — we activate after verification (usually within 24 hours).</p>
+  <div class="actions" style="margin-top:1rem;flex-wrap:wrap;gap:0.75rem">
+    {% if current_plan == 'free' %}
+    <a href="{{ url_for('checkout', plan='pro') }}" class="btn primary btn-lg">Pay for Pro — {{ plan_prices.pro }}{{ plan_price_period }}</a>
+    <a href="{{ url_for('checkout', plan='vip') }}" class="btn secondary">Pay for VIP</a>
+    {% elif current_plan == 'pro' %}
+    <a href="{{ url_for('checkout', plan='vip') }}" class="btn primary btn-lg">Upgrade to VIP — {{ plan_prices.vip }}{{ plan_price_period }}</a>
+    {% endif %}
+    {% if upgrade_url %}
+    <a href="{{ upgrade_url }}" class="btn secondary" target="_blank" rel="noopener">Contact support</a>
+    {% endif %}
+    <a href="{{ url_for('dashboard') }}" class="btn ghost">Back to reports</a>
+  </div>
+</section>
+{% elif current_plan == 'vip' or current_plan == 'admin' %}
+<section class="card">
+  <p class="flash ok">You're on our highest plan — full TikTok + Google Trends access. Thanks for choosing WinnerSpy.</p>
+</section>
+{% endif %}
+
+<section class="card mt">
+  <h2>Plan comparison</h2>
+  <div class="table-wrap mt">
+    <table class="tbl compare-plans">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="{% if current_plan == 'free' %}col-current{% endif %}">Free</th>
+          <th class="{% if current_plan == 'pro' %}col-current{% endif %}">Pro</th>
+          <th class="{% if current_plan == 'vip' %}col-current{% endif %}">VIP</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Scans / day</td>
+          <td>{{ all_plans.free.scans_per_day }}</td>
+          <td>{{ all_plans.pro.scans_per_day }}</td>
+          <td><strong>{{ all_plans.vip.scans_per_day }}</strong></td>
+        </tr>
+        <tr>
+          <td>Keywords per scan</td>
+          <td>≤ {{ all_plans.free.keywords_max }}</td>
+          <td>≤ {{ all_plans.pro.keywords_max }}</td>
+          <td>≤ {{ all_plans.vip.keywords_max }}</td>
+        </tr>
+        <tr>
+          <td>Facebook Ads scan</td>
+          <td>✓</td><td>✓</td><td>✓</td>
+        </tr>
+        <tr>
+          <td>CSV + HTML reports</td>
+          <td>✓</td><td>✓</td><td>✓</td>
+        </tr>
+        <tr>
+          <td>TikTok check</td>
+          <td>—</td>
+          <td>≤ {{ all_plans.pro.tiktok_max }} products</td>
+          <td>≤ {{ all_plans.vip.tiktok_max }} products</td>
+        </tr>
+        <tr>
+          <td>Google Trends</td>
+          <td>—</td><td>—</td><td>≤ {{ all_plans.vip.gt_max }} products</td>
+        </tr>
+        <tr>
+          <td>API access</td>
+          <td>—</td><td>✓</td><td>✓</td>
+        </tr>
+        <tr>
+          <td>Scheduled scans</td>
+          <td>{{ all_plans.free.schedules }}</td>
+          <td>{{ all_plans.pro.schedules }}</td>
+          <td>{{ all_plans.vip.schedules }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small" style="margin-top:0.75rem">
+    TikTok &amp; Google Trends always have a <strong>product limit per report</strong> on Pro/VIP —
+    these scans are slow and platforms rate-limit aggressively. No tool offers truly unlimited TikTok scraping.
+    VIP = highest Facebook quota + Google Trends enabled.
+  </p>
+</section>
+
+<section class="pricing-grid mt">
+  <div class="price-card {% if current_plan == 'free' %}featured{% endif %}">
+    <h3>Free</h3>
+    <div class="price">$0</div>
+    <ul>
+      <li>Try Facebook product research</li>
+      <li>{{ all_plans.free.scans_per_day }} scans/day</li>
+      <li>{{ all_plans.free.keywords_max }} keywords/scan</li>
+    </ul>
+    {% if current_plan == 'free' %}<span class="plan-badge">Current plan</span>{% endif %}
+  </div>
+  <div class="price-card {% if current_plan == 'pro' %}featured{% endif %}">
+    <h3>Pro</h3>
+    {{ plan_price_block('pro') }}
+    <ul>
+      <li>Everything in Free, plus</li>
+      <li><strong>TikTok</strong> for top products</li>
+      <li>More keywords &amp; scans</li>
+    </ul>
+    {% if current_plan == 'pro' %}<span class="plan-badge pro">Current plan</span>
+    {% elif current_plan == 'free' %}<a href="{{ url_for('checkout', plan='pro') }}" class="btn primary" style="width:100%;margin-top:0.75rem">Pay for Pro</a>{% endif %}
+  </div>
+  <div class="price-card {% if current_plan == 'vip' %}featured{% endif %}">
+    <h3>VIP</h3>
+    {{ plan_price_block('vip') }}
+    <ul>
+      <li>{{ plan_labels.vip.scans }}</li>
+      <li>{{ plan_labels.vip.keywords }}</li>
+      <li>{{ plan_labels.vip.tiktok }}</li>
+      <li>{{ plan_labels.vip.trends }}</li>
+    </ul>
+    {% if current_plan == 'vip' or current_plan == 'admin' %}<span class="plan-badge vip">Current plan</span>
+    {% elif current_plan in ('free', 'pro') %}<a href="{{ url_for('checkout', plan='vip') }}" class="btn primary" style="width:100%;margin-top:0.75rem">Pay for VIP</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

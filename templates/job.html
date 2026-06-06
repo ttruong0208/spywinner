@@ -1,0 +1,210 @@
+{% extends "layout.html" %}
+{% block title %}Report — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Report details</h1>
+  <p class="lead">Track progress and download deliverables.</p>
+</header>
+
+<section class="card">
+  <div class="job-hero">
+    <div>
+      <span class="job-id">{{ job.id }}</span>
+      <p class="muted" style="margin-top:0.5rem">
+        <span class="status {{ job.status }}">{{ job.status }}</span>
+        {% if job.exit_code is defined and job.status == 'failed' %} · final step failed (FB data may already be available){% endif %}
+      </p>
+      {% if job.warning %}
+      <p class="flash warn" style="margin-top:0.75rem">{{ job.warning }}</p>
+      {% endif %}
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="{{ url_for('job_gallery', job_id=job.id) }}">Ad library (AdSpy)</a>
+      <a class="btn secondary" href="{{ url_for('job_report', job_id=job.id) }}" target="_blank">HTML report</a>
+      <a class="btn secondary" href="{{ url_for('job_file', job_id=job.id, filename='winner_products.csv', dl=1) }}">Download CSV</a>
+      {% if job.status != 'done' and job.status != 'failed' %}
+      <a class="btn ghost" href="#" onclick="location.reload();return false;">Refresh</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if job.status in ['queued', 'running'] %}
+  <div class="info-banner">Processing — page auto-refreshes every few seconds</div>
+  {% endif %}
+</section>
+
+<div class="grid2 grid2-wide mt">
+  <section class="card">
+    <h2>Log</h2>
+    <pre class="log" id="logbox">{{ log }}</pre>
+  </section>
+  <section class="card">
+    <h2>Top products</h2>
+  {% if filter_preset_meta %}
+  <p class="muted small" style="margin-bottom:0.75rem">
+    Filter applied during scan: <strong>{{ filter_preset_meta.title }}</strong> — {{ filter_preset_meta.hint }}
+    <br/>Table below = <strong>scored</strong> results. ✓ column = meets preset → included in <code>winner_products.csv</code>.
+  </p>
+  {% endif %}
+  {% if rows %}
+  <div class="job-filter-bar">
+    <span class="muted small" style="width:100%;margin-bottom:0.25rem">Refilter results (no rescan needed):</span>
+    <label class="jf-field">Ads ≥
+      <input type="number" id="jf-min-ads" value="2" min="0" max="999" style="width:4rem"/>
+    </label>
+    <label class="jf-field">Days running ≥
+      <input type="number" id="jf-min-days" value="0" min="0" max="999" style="width:4rem"/>
+    </label>
+    <label class="jf-field">Score ≥
+      <input type="number" id="jf-min-score" value="0" min="0" max="100" style="width:4rem"/>
+    </label>
+    <label class="jf-check"><input type="checkbox" id="jf-product-only"/> Product landing pages only</label>
+    <label class="jf-check"><input type="checkbox" id="jf-no-market"/> Exclude marketplaces (Amazon, Shopee…)</label>
+    <div class="jf-presets">
+      {% for fp in filter_presets %}
+      <button type="button" class="btn ghost small-btn jf-preset" data-preset="{{ fp.id }}">{{ fp.title }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+    {% if not rows %}
+    <div class="empty-state">
+      {% if has_raw_ads and raw_ad_count > 0 %}
+      <p class="flash warn" style="text-align:left;margin:0 0 1rem">
+        Facebook scraped <strong>{{ raw_ad_count }}</strong> ads but filter
+        <strong>{{ filter_preset_meta.title }}</strong> is too strict — no products in the report.
+        Rerun job (from raw) to generate <code>scored_products.csv</code> — or update code and rescan.
+      </p>
+      <p><strong>What to do:</strong></p>
+      <ul class="muted small" style="text-align:left;margin:0.5rem 0 1rem">
+        <li>Rescan with <strong>Balanced</strong> preset (avoid strict Winner for broad keywords like "cleaning")</li>
+        <li>Or tick <strong>Rescore from raw_ads.csv only</strong> + Balanced preset to skip FB rescan</li>
+        <li>View <a href="{{ url_for('job_gallery', job_id=job.id) }}">Ad library</a> — raw data still available</li>
+      </ul>
+      {% else %}
+      <p>No data yet</p>
+      <p class="small">Wait for scan to finish or check the log for errors</p>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="table-wrap">
+      <table class="tbl" id="winner-table">
+        <thead>
+          <tr><th>#</th><th>✓</th><th>Score</th><th>Label</th><th>Product</th><th>Ads</th><th>Days</th></tr>
+        </thead>
+        <tbody id="winner-rows">
+          {% for r in rows %}
+          <tr
+            data-label="{{ r.label }}"
+            data-ads="{{ r.ads_count }}"
+            data-days="{{ r.max_days }}"
+            data-score="{{ r.score }}"
+            data-landing="{{ r.landing_type }}"
+            data-domain="{{ r.domain }}"
+          >
+            <td>{{ loop.index }}</td>
+            <td>{% if r.matches_preset == '1' %}<span class="pill ok" title="Meets preset">✓</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="score">{{ r.score }}</td>
+            <td><span class="label-tag {% if r.label == 'weak' %}weak{% endif %}">{{ r.label or '—' }}</span></td>
+            <td title="{{ r.product }}">
+              {% if r.url %}<a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.product[:28] }}{% if r.product|length > 28 %}…{% endif %}</a>
+              {% else %}{{ r.product[:32] }}{% if r.product|length > 32 %}…{% endif %}{% endif %}
+            </td>
+            <td>{{ r.ads_count }}</td>
+            <td>{{ r.max_days }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p id="jf-empty" class="muted small" style="display:none;margin-top:0.5rem">No products match the current filters.</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card mt">
+  <h2>Attached files</h2>
+  <div class="file-chips" style="margin-top:0.75rem">
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='scored_products.csv') }}">scored.csv</a>
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='winner_products.csv') }}">winner.csv</a>
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='final_research_results.csv') }}">final.csv</a>
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='report.html') }}">report.html</a>
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='raw_ads.csv') }}">raw_ads.csv</a>
+    <a class="file-chip" href="{{ url_for('job_file', job_id=job.id, filename='log.txt') }}">log.txt</a>
+  </div>
+</section>
+
+<a class="back-link" href="{{ url_for('dashboard') }}">← Back to dashboard</a>
+{% endblock %}
+
+{% block scripts %}
+{% if rows %}
+<script>
+(function () {
+  const MP = ["amazon.", "amzn.", "aliexpress.", "temu.com", "wish.", "ebay.", "shopee.", "lazada.", "tiktok.com/shop"];
+  const PRESET = {
+    balanced: { ads: 2, days: 0, score: 0, product: false, mp: false },
+    strict_winner: { ads: 5, days: 14, score: 22, product: true, mp: true },
+    scaling: { ads: 10, days: 7, score: 18, product: true, mp: true },
+    new_test: { ads: 2, days: 0, score: 12, product: false, mp: false },
+    durable: { ads: 3, days: 30, score: 16, product: true, mp: false },
+    shopify_dtc: { ads: 2, days: 0, score: 10, product: true, mp: true },
+  };
+  const minAds = document.getElementById("jf-min-ads");
+  const minDays = document.getElementById("jf-min-days");
+  const minScore = document.getElementById("jf-min-score");
+  const productOnly = document.getElementById("jf-product-only");
+  const noMp = document.getElementById("jf-no-market");
+  const empty = document.getElementById("jf-empty");
+
+  function isMp(domain) {
+    const d = (domain || "").toLowerCase();
+    return MP.some((m) => d.includes(m));
+  }
+
+  function applyFilters() {
+    const a = +minAds.value || 0;
+    const d = +minDays.value || 0;
+    const s = +minScore.value || 0;
+    let visible = 0;
+    document.querySelectorAll("#winner-rows tr").forEach((tr) => {
+      const ads = +tr.dataset.ads || 0;
+      const days = +tr.dataset.days || 0;
+      const score = +tr.dataset.score || 0;
+      const landing = tr.dataset.landing || "";
+      const domain = tr.dataset.domain || "";
+      let ok = ads >= a && days >= d && score >= s;
+      if (productOnly.checked && landing !== "product") ok = false;
+      if (noMp.checked && isMp(domain)) ok = false;
+      tr.style.display = ok ? "" : "none";
+      if (ok) visible++;
+    });
+    empty.style.display = visible ? "none" : "block";
+  }
+
+  [minAds, minDays, minScore, productOnly, noMp].forEach((el) => el.addEventListener("input", applyFilters));
+  document.querySelectorAll(".jf-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = PRESET[btn.dataset.preset] || PRESET.balanced;
+      minAds.value = p.ads;
+      minDays.value = p.days;
+      minScore.value = p.score;
+      productOnly.checked = p.product;
+      noMp.checked = p.mp;
+      applyFilters();
+    });
+  });
+  applyFilters();
+})();
+</script>
+{% endif %}
+{% if job.status in ['queued', 'running'] %}
+<script>
+setInterval(async () => {
+  const res = await fetch('{{ url_for("api_job_status", job_id=job.id) }}');
+  const data = await res.json();
+  document.getElementById('logbox').textContent = data.log_tail || '';
+  if (data.status === 'done' || data.status === 'failed') location.reload();
+}, 8000);
+</script>
+{% endif %}
+{% endblock %}

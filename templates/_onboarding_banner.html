@@ -1,0 +1,22 @@
+{% if show_onboarding %}
+<section class="onboarding-banner card">
+  <div class="onboarding-inner">
+    <div>
+      <p class="eyebrow" style="margin:0">First time using WinnerSpy?</p>
+      <h2 style="margin:0.35rem 0 0.5rem;font-size:1.15rem">Create your first report in 3 steps</h2>
+      <ol class="onboarding-steps">
+        <li><strong>Specific keyword</strong> — e.g. <code>magnetic eyelash kit</code> (avoid broad terms like <code>cleaning</code>)</li>
+        <li><strong>Balanced</strong> preset (default) — you'll always get a product list after scanning</li>
+        <li><strong>Start report</strong> → open the job → download <code>report.html</code> + <code>scored.csv</code></li>
+      </ol>
+      <p class="muted small" style="margin:0.75rem 0 0">
+        The <strong>✓</strong> column means the product passed your filters. Zero winners is OK — check scored results &amp; the Ads Library.
+      </p>
+    </div>
+    <form method="post" action="{{ url_for('dismiss_onboarding') }}" class="onboarding-dismiss">
+      {% include "_csrf.html" %}
+      <button type="submit" class="btn ghost small-btn">Got it, hide</button>
+    </form>
+  </div>
+</section>
+{% endif %}

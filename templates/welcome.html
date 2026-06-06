@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block title %}Welcome — WinnerSpy Free{% endblock %}
+{% block content %}
+{% from "_price_macros.html" import plan_price_block with context %}
+<header class="page-header welcome-header">
+  <p class="eyebrow">Your account is ready</p>
+  <h1>Welcome, {{ current_user.email.split('@')[0] }} 👋</h1>
+  <p class="lead">You're on the <span class="plan-badge">Free</span> plan — start hunting winning Facebook products now.</p>
+</header>
+
+<section class="card welcome-free-box">
+  <h2>What's included on Free</h2>
+  <ul class="welcome-perks">
+    <li><strong>{{ limits.scans_per_day }}</strong> scans per day</li>
+    <li>Up to <strong>{{ limits.keywords_max }}</strong> keywords per scan</li>
+    <li>CSV + HTML reports from Facebook Ads Library</li>
+  </ul>
+  <div class="flash ok" style="margin:1rem 0">
+    <strong>First-run tip:</strong> try keyword <code>magnetic eyelash kit</code> with the <strong>Balanced</strong> preset — you'll see results right away.
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn primary btn-lg">Create your first report →</a>
+  {% if support_zalo_url %}
+  <p class="muted small" style="margin-top:0.75rem;text-align:center">
+    Stuck? <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a> — {{ support_hours }}
+  </p>
+  {% endif %}
+</section>
+
+<section class="card upgrade-cta welcome-upsell mt">
+  <span class="upsell-tag">Most popular</span>
+  <h2>Want TikTok checks and more scans?</h2>
+  <p>
+    {% if launch_promo %}<strong>{{ launch_promo_note }}</strong><br/>{% endif %}
+    Most dropshippers upgrade to <strong>Pro</strong> when they need TikTok video validation and higher scan volume across niches.
+  </p>
+  <div class="welcome-upsell-grid">
+    <div class="upsell-card featured">
+      <h3>Pro</h3>
+      {{ plan_price_block('pro') }}
+      <ul>
+        <li>{{ plan_labels.pro.scans }}</li>
+        <li>{{ plan_labels.pro.tiktok }}</li>
+        <li>API + scheduled scans</li>
+      </ul>
+      <a href="{{ url_for('checkout', plan='pro') }}" class="btn primary" style="width:100%">Upgrade to Pro</a>
+    </div>
+    <div class="upsell-card">
+      <h3>VIP</h3>
+      {{ plan_price_block('vip') }}
+      <ul>
+        <li>{{ plan_labels.vip.scans }}</li>
+        <li>{{ plan_labels.vip.trends }}</li>
+        <li>Full stack: FB + TikTok + Trends</li>
+      </ul>
+      <a href="{{ url_for('checkout', plan='vip') }}" class="btn secondary" style="width:100%">View VIP</a>
+    </div>
+  </div>
+  <p class="muted small" style="margin-top:1rem;text-align:center">
+    Stay on Free as long as you like — upgrade anytime from the <strong>Pricing</strong> menu.
+  </p>
+</section>
+{% endblock %}

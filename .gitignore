@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+chrome_debug_profile/
+playwright_profile/
+jobs/
+data/
+*.csv
+search_links.txt
+report.html
+*.log

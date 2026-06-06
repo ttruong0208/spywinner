@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block title %}Scan schedules — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <p class="eyebrow">Automation</p>
+  <h1>Automated scan schedules</h1>
+  <p class="lead">Up to {{ limits.schedules }} schedules — checked every minute.</p>
+</header>
+
+<section class="grid2">
+  <div class="card">
+    <h2>New schedule</h2>
+    <form method="post" class="form">
+      {% include "_csrf.html" %}
+      <label>Schedule name
+        <input type="text" name="name" value="Morning scan" required/>
+      </label>
+      <div class="row3">
+        <label>Hour
+          <input type="number" name="hour" value="8" min="0" max="23"/>
+        </label>
+        <label>Minute
+          <input type="number" name="minute" value="0" min="0" max="59"/>
+        </label>
+      </div>
+      <fieldset class="days-field">
+        <legend>Days of week</legend>
+        {% for d, label in [(0,'Sun'),(1,'Mon'),(2,'Tue'),(3,'Wed'),(4,'Thu'),(5,'Fri'),(6,'Sat')] %}
+        <label class="check inline">
+          <input type="checkbox" name="days" value="{{ d }}" checked/> {{ label }}
+        </label>
+        {% endfor %}
+      </fieldset>
+      <label>Country
+        <select name="country"><option value="US">United States (US)</option><option value="VN">Vietnam (VN)</option></select>
+      </label>
+      <label>Preset
+        <select name="preset">
+          {% for p in presets %}<option value="{{ p }}">{{ preset_labels.get(p, p) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="tiktok" checked/> Enable TikTok
+      </label>
+      <label>Scroll
+        <input type="number" name="scroll" value="8" max="{{ limits.scroll_max }}"/>
+      </label>
+      <button type="submit" class="btn primary btn-glow">Add schedule</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Active schedules</h2>
+    {% if not schedules %}
+    <p class="muted">No schedules yet.</p>
+    {% else %}
+    <ul class="sched-list">
+      {% for s in schedules %}
+      <li>
+        <strong>{{ s.name }}</strong>
+        <span class="muted"> · {{ '%02d' % s.hour }}:{{ '%02d' % s.minute }}</span>
+        <span class="muted small"> · {{ s.days }}</span>
+        {% if s.enabled %}<span class="pill ok">On</span>{% else %}<span class="pill">Off</span>{% endif %}
+        {% if s.last_run_at %}<br/><span class="muted small">Last run: {{ s.last_run_at }}</span>{% endif %}
+        <div class="row mt">
+          <form method="post" class="inline-form">
+            {% include "_csrf.html" %}
+            <input type="hidden" name="action" value="toggle"/>
+            <input type="hidden" name="schedule_id" value="{{ s.id }}"/>
+            <input type="hidden" name="enabled" value="{{ 0 if s.enabled else 1 }}"/>
+            <button type="submit" class="btn secondary small-btn">{{ 'Disable' if s.enabled else 'Enable' }}</button>
+          </form>
+          <form method="post" class="inline-form">
+            {% include "_csrf.html" %}
+            <input type="hidden" name="action" value="delete"/>
+            <input type="hidden" name="schedule_id" value="{{ s.id }}"/>
+            <button type="submit" class="btn ghost small-btn" onclick="return confirm('Delete this schedule?')">Delete</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

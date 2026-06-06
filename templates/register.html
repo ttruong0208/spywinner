@@ -1,0 +1,43 @@
+{% extends "public_base.html" %}
+{% block title %}Sign up — WinnerSpy{% endblock %}
+{% block body %}
+<div class="auth-page-wrap">
+  <div class="auth-box">
+    <a href="{{ url_for('home') }}" class="public-logo" style="margin-bottom:1.25rem">
+      <span class="brand-icon">W</span>
+      <span class="brand-name">WinnerSpy</span>
+    </a>
+    {% if target_plan == 'pro' %}
+    <h1>Sign up → Pro</h1>
+    <p class="sub">Verify your email first — then checkout Pro ({{ plan_prices.pro }}{{ plan_price_period }})</p>
+    {% elif target_plan == 'vip' %}
+    <h1>Sign up → VIP</h1>
+    <p class="sub">Verify your email first — then checkout VIP ({{ plan_prices.vip }}{{ plan_price_period }})</p>
+    {% else %}
+    <h1>Create a Free account</h1>
+    <p class="sub">After signing up you'll receive a confirmation email — click the link, then start researching products</p>
+    {% endif %}
+    <form method="post" class="form">
+      {% include "_csrf.html" %}
+      <input type="hidden" name="plan" value="{{ target_plan }}"/>
+      <label>Email
+        <input type="email" name="email" required autocomplete="email"/>
+      </label>
+      {% if registration_mode == 'invite' %}
+      <label>Invite code
+        <input type="text" name="invite_code" required autocomplete="off"/>
+      </label>
+      {% endif %}
+      <label>Password <span class="hint">(minimum 10 characters, letters + numbers)</span>
+        <input type="password" name="password" required minlength="10" autocomplete="new-password"/>
+      </label>
+      <button type="submit" class="btn primary btn-lg">
+        {% if target_plan in ('pro', 'vip') %}Continue to {{ target_plan|upper }} checkout{% else %}Sign up for Free{% endif %}
+      </button>
+    </form>
+    <p class="auth-divider">Already have an account?</p>
+    <a href="{{ url_for('login', plan=target_plan) }}" class="btn secondary" style="width:100%;text-align:center">Log in</a>
+    <a href="{{ url_for('home') }}" class="auth-back">← Back to homepage</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}API — WinnerSpy{% endblock %}
+{% block content %}
+<header class="page-header">
+  <p class="eyebrow">Developers</p>
+  <h1>REST API v1</h1>
+  <p class="lead">Automate scans — requires Pro or Admin plan.</p>
+</header>
+
+<section class="card">
+  <p class="muted">Base URL</p>
+  <code class="key" style="margin-top:0.5rem">http://127.0.0.1:5050/api/v1</code>
+
+  <p class="form-section-title">Authentication</p>
+  <pre class="log">Authorization: Bearer {{ user.api_key }}
+X-API-Key: {{ user.api_key }}</pre>
+
+  <p class="form-section-title">Endpoints</p>
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td>/api/v1/me</td><td>User info + quota</td></tr>
+        <tr><td><code>POST</code></td><td>/api/v1/scans</td><td>Create new scan</td></tr>
+        <tr><td><code>GET</code></td><td>/api/v1/scans/&lt;id&gt;</td><td>Status + log</td></tr>
+        <tr><td><code>GET</code></td><td>/api/v1/scans/&lt;id&gt;/winners</td><td>Winner list</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="form-section-title">Example</p>
+  <pre class="log">curl -X POST http://127.0.0.1:5050/api/v1/scans \
+  -H "Authorization: Bearer {{ user.api_key }}" \
+  -H "Content-Type: application/json" \
+  -d '{"country":"US","preset":"cleaning_us","scroll":8,"tiktok":true}'</pre>
+</section>
+{% endblock %}
