@@ -255,12 +255,12 @@ def inject_globals():
     }
     if current_user.is_authenticated:
         limits = db.plan_limits(current_user.plan if current_user.plan != "admin" else "vip")
-        jobs = db.list_jobs_for_user(current_user.id, 5)
+        recent_jobs = db.list_jobs_for_user(current_user.id, 5)
         base.update({
             "user_limits": limits,
             "scans_today": db.count_scans_today(current_user.id),
-            "show_onboarding": not session.get("onboarding_dismissed") and len(jobs) == 0,
-            "user_job_count": len(jobs),
+            "show_onboarding": not session.get("onboarding_dismissed") and len(recent_jobs) == 0,
+            "user_job_count": len(recent_jobs),
         })
     return base
 
