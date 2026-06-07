@@ -60,8 +60,7 @@ from winnerspy_plans import (
 from winnerspy_filters import list_presets_for_ui, preset_meta
 from winnerspy_gallery import build_gallery_cards
 from winnerspy_mail import (
-    build_verify_url,
-    send_verification_email,
+    send_verification_code_email,
     send_welcome_email,
     smtp_configured,
 )
@@ -232,6 +231,7 @@ def inject_globals():
         "saas_mode": saas_mode(),
         "registration_mode": auth.registration_mode(),
         "registration_allowed": auth.registration_allowed(),
+        "email_verification_enabled": auth.email_verification_enabled(),
         "upgrade_url": upgrade_contact_url(),
         "upgrade_note": upgrade_contact_note(),
         "plan_labels": {
@@ -307,16 +307,17 @@ def _redirect_logged_in_for_plan(plan: str):
     return redirect(url_for("checkout", plan=plan))
 
 
-def _send_verification_email_for_user(row: dict) -> None:
-    token = row.get("verify_token")
-    if not token or not db.verify_token_valid(row):
-        token = db.rotate_verify_token(row["id"])
+def _send_verification_email_for_user(row: dict) -> str:
+    code = str(row.get("verify_token") or "").strip()
+    if not code or not db.verify_token_valid(row) or len(code) != 6:
+        code = db.rotate_verify_token(row["id"])
         row = db.get_user_by_id(row["id"]) or row
-    url = build_verify_url(row.get("verify_token") or token)
-    if send_verification_email(row["email"], url):
-        session.pop("dev_verify_url", None)
+        code = str(row.get("verify_token") or code)
+    if send_verification_code_email(row["email"], code):
+        session.pop("dev_verify_code", None)
     else:
-        session["dev_verify_url"] = url
+        session["dev_verify_code"] = code
+    return code
 
 
 @app.route("/choose-plan/<plan>")
@@ -389,6 +390,7 @@ def register():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
         invite = request.form.get("invite_code", "").strip()
         target_plan = normalize_choose_plan(request.form.get("plan") or request.args.get("plan"))
         ok, msg = auth.check_rate_limit(f"register:{auth.client_ip()}")
@@ -397,31 +399,32 @@ def register():
         elif mode == "invite" and not auth.verify_invite_code(invite):
             flash("Invalid invite code.", "error")
         else:
-            pw_ok, pw_msg = auth.validate_password(password)
-            if not pw_ok:
-                flash(pw_msg, "error")
-            elif db.get_user_by_email(email):
-                flash("Email already registered.", "error")
+            match_ok, match_msg = auth.passwords_match(password, password_confirm)
+            if not match_ok:
+                flash(match_msg, "error")
             else:
-                uid = db.create_user(email, generate_password_hash(password))
-                row = db.get_user_by_id(uid)
-                login_user(User(row))
-                session["pending_plan"] = target_plan
-                if auth.email_verification_enabled():
-                    _send_verification_email_for_user(row)
-                    flash(
-                        "Sign-up successful. Check your email and click the verification link.",
-                        "ok",
-                    )
-                    return redirect(url_for("verify_pending"))
-                if target_plan == "free":
-                    flash("Free account ready — 5 scans per day.", "ok")
+                pw_ok, pw_msg = auth.validate_password(password)
+                if not pw_ok:
+                    flash(pw_msg, "error")
+                elif db.get_user_by_email(email):
+                    flash("Email already registered.", "error")
                 else:
-                    flash(
-                        f"Account created — complete {target_plan.upper()} checkout and submit payment proof.",
-                        "ok",
-                    )
-                return _redirect_after_auth(target_plan)
+                    uid = db.create_user(email, generate_password_hash(password))
+                    row = db.get_user_by_id(uid)
+                    login_user(User(row))
+                    session["pending_plan"] = target_plan
+                    _send_verification_email_for_user(row)
+                    if smtp_configured():
+                        flash(
+                            "Account created. We sent a 6-digit code to your email — enter it to continue.",
+                            "ok",
+                        )
+                    else:
+                        flash(
+                            "Account created. Enter the verification code shown below (SMTP not configured yet).",
+                            "warn",
+                        )
+                    return redirect(url_for("verify_pending"))
     return render_template(
         "register.html",
         registration_mode=mode,
@@ -429,30 +432,53 @@ def register():
     )
 
 
-@app.route("/verify-pending")
+@app.route("/verify-pending", methods=["GET", "POST"])
 @login_required
 def verify_pending():
     row = db.get_user_by_id(current_user.id)
     if auth.is_user_email_verified(row):
         return _redirect_after_auth(session.get("pending_plan", "free"))
-    dev_url = session.get("dev_verify_url")
+
+    if request.method == "POST":
+        code = (request.form.get("verify_code") or "").strip()
+        row = db.get_user_by_id(current_user.id)
+        ok, msg = auth.check_rate_limit(f"verify_code:{current_user.id}")
+        if not ok:
+            flash(msg, "error")
+        elif not code:
+            flash("Enter the 6-digit code from your email.", "error")
+        elif not db.verify_token_valid(row):
+            flash("Code expired — click Resend code for a new one.", "error")
+        elif not auth.secrets_compare(code, str(row.get("verify_token") or "")):
+            flash("Incorrect code — check your email and try again.", "error")
+        else:
+            db.mark_email_verified(current_user.id)
+            session.pop("dev_verify_code", None)
+            fresh = db.get_user_by_id(current_user.id)
+            flash("Email verified. Welcome to WinnerSpy!", "ok")
+            dash_abs = f"{app_base_url()}/dashboard"
+            if send_welcome_email(fresh["email"], dash_abs):
+                flash("Sent a getting-started email — check your inbox.", "ok")
+            return _redirect_after_auth(session.get("pending_plan", "free"))
+
+    dev_code = session.get("dev_verify_code")
     return render_template(
         "verify_pending.html",
         email=current_user.email,
         smtp_ok=smtp_configured(),
-        dev_verify_url=dev_url,
+        dev_verify_code=dev_code,
     )
 
 
 @app.route("/verify-email")
 def verify_email():
-    token = (request.args.get("token") or "").strip()
-    row = db.get_user_by_verify_token(token)
+    code = (request.args.get("code") or request.args.get("token") or "").strip()
+    row = db.get_user_by_verify_token(code)
     if not row:
-        flash("Invalid or already used link.", "error")
+        flash("Invalid or expired code.", "error")
         return redirect(url_for("login"))
     if not db.verify_token_valid(row):
-        flash("Link expired. Log in and resend verification email.", "error")
+        flash("Code expired. Log in and request a new code.", "error")
         return redirect(url_for("login"))
     db.mark_email_verified(row["id"])
     fresh = db.get_user_by_id(row["id"])
@@ -478,9 +504,9 @@ def resend_verification():
         row = db.get_user_by_id(current_user.id)
         _send_verification_email_for_user(row)
         if smtp_configured():
-            flash("Verification email sent again.", "ok")
+            flash("New verification code sent to your email.", "ok")
         else:
-            flash("SMTP not configured — use the verification link shown below.", "ok")
+            flash("SMTP not configured — use the code shown on this page.", "warn")
     return redirect(url_for("verify_pending"))
 
 

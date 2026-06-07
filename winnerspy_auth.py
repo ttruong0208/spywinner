@@ -58,6 +58,12 @@ def validate_password(password: str) -> tuple[bool, str]:
     return True, ""
 
 
+def passwords_match(password: str, confirm: str) -> tuple[bool, str]:
+    if password != confirm:
+        return False, "Passwords do not match — please enter the same password twice."
+    return True, ""
+
+
 def check_rate_limit(bucket_key: str) -> tuple[bool, str]:
     now = time.time()
     with _rate_lock:
@@ -92,17 +98,8 @@ def admin_bootstrap_password() -> str:
 
 
 def email_verification_enabled() -> bool:
-    """Require verified email only when SMTP is configured (or forced via env)."""
-    if _env_truthy("WINNERSPY_SKIP_EMAIL_VERIFY", "0"):
-        return False
-    if _env_truthy("WINNERSPY_REQUIRE_EMAIL_VERIFY", "0"):
-        return True
-    try:
-        from winnerspy_mail import smtp_configured
-
-        return smtp_configured()
-    except Exception:
-        return False
+    """Require email code after signup (disable only with WINNERSPY_SKIP_EMAIL_VERIFY=1)."""
+    return not _env_truthy("WINNERSPY_SKIP_EMAIL_VERIFY", "0")
 
 
 def is_user_email_verified(row: dict | None) -> bool:

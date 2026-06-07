@@ -20,6 +20,16 @@ services:
         value: https://winnerspy.app
       - key: WINNERSPY_PAYPAL_ME
         sync: false
+      - key: WINNERSPY_SMTP_HOST
+        sync: false
+      - key: WINNERSPY_SMTP_PORT
+        value: "587"
+      - key: WINNERSPY_SMTP_USER
+        sync: false
+      - key: WINNERSPY_SMTP_PASSWORD
+        sync: false
+      - key: WINNERSPY_SMTP_FROM
+        sync: false
       - key: WINNERSPY_SECRET
         sync: false
       - key: WINNERSPY_ADMIN_PASSWORD
