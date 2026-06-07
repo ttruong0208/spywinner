@@ -71,6 +71,13 @@ def _smtp_settings() -> dict:
     }
 
 
+_RESEND_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "WinnerSpy/1.0 (https://winnerspy.app)",
+}
+
+
 def _resend_send(to_email: str, subject: str, html: str, text: str = "") -> bool:
     api_key = os.environ.get("WINNERSPY_RESEND_API_KEY", "").strip()
     if not api_key:
@@ -84,13 +91,11 @@ def _resend_send(to_email: str, subject: str, html: str, text: str = "") -> bool
     if text:
         payload["text"] = text
     body = json.dumps(payload).encode("utf-8")
+    headers = {**_RESEND_HEADERS, "Authorization": f"Bearer {api_key}"}
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
+        headers=headers,
         method="POST",
     )
     try:
