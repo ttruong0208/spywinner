@@ -161,8 +161,8 @@ def get_user_by_api_key(api_key: str) -> dict | None:
 
 def create_user(email: str, password_hash: str, plan: str = "free") -> int:
     api_key = "ws_" + secrets.token_urlsafe(24)
-    token = secrets.token_urlsafe(32)
-    expires = (datetime.now() + timedelta(hours=48)).isoformat(timespec="seconds")
+    code = f"{secrets.randbelow(1000000):06d}"
+    expires = (datetime.now() + timedelta(minutes=15)).isoformat(timespec="seconds")
     with connect() as conn:
         cur = conn.execute(
             """
@@ -178,7 +178,7 @@ def create_user(email: str, password_hash: str, plan: str = "free") -> int:
                 plan,
                 api_key,
                 datetime.now().isoformat(timespec="seconds"),
-                token,
+                code,
                 expires,
             ),
         )
@@ -209,17 +209,17 @@ def mark_email_verified(user_id: int) -> None:
 
 
 def rotate_verify_token(user_id: int) -> str:
-    token = secrets.token_urlsafe(32)
-    expires = (datetime.now() + timedelta(hours=48)).isoformat(timespec="seconds")
+    code = f"{secrets.randbelow(1000000):06d}"
+    expires = (datetime.now() + timedelta(minutes=15)).isoformat(timespec="seconds")
     with connect() as conn:
         conn.execute(
             """
             UPDATE users SET verify_token = ?, verify_token_expires = ?, email_verified = 0
             WHERE id = ?
             """,
-            (token, expires, user_id),
+            (code, expires, user_id),
         )
-    return token
+    return code
 
 
 def verify_token_valid(row: dict) -> bool:

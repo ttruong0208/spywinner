@@ -9,7 +9,7 @@
 
 <section class="card">
   <p class="muted">Base URL</p>
-  <code class="key" style="margin-top:0.5rem">http://127.0.0.1:5050/api/v1</code>
+  <code class="key" style="margin-top:0.5rem">{{ api_base_url }}</code>
 
   <p class="form-section-title">Authentication</p>
   <pre class="log">Authorization: Bearer {{ user.api_key }}
@@ -31,7 +31,7 @@ X-API-Key: {{ user.api_key }}</pre>
   </div>
 
   <p class="form-section-title">Example</p>
-  <pre class="log">curl -X POST http://127.0.0.1:5050/api/v1/scans \
+  <pre class="log">curl -X POST {{ api_base_url }}/scans \
   -H "Authorization: Bearer {{ user.api_key }}" \
   -H "Content-Type: application/json" \
   -d '{"country":"US","preset":"cleaning_us","scroll":8,"tiktok":true}'</pre>

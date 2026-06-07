@@ -7,8 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
-def app_base_url() -> str:
-    return os.environ.get("WINNERSPY_APP_URL", "http://127.0.0.1:5050").rstrip("/")
+from winnerspy_config import app_base_url
 
 
 def smtp_configured() -> bool:
@@ -84,7 +83,67 @@ Need help? Reply to this email or contact support on the site.
         return False
 
 
+def send_verification_code_email(to_email: str, code: str) -> bool:
+    """Send 6-digit verification code."""
+    if not smtp_configured():
+        return False
+
+    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
+    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
+    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
+    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
+    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
+    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
+    verify_url = f"{app_base_url()}/verify-pending"
+
+    subject = f"Your WinnerSpy verification code: {code}"
+    text = f"""Hi,
+
+Your WinnerSpy email verification code is:
+
+  {code}
+
+Enter this code on the verification page to activate your account:
+{verify_url}
+
+Code expires in 15 minutes. If you did not sign up, ignore this email.
+
+— WinnerSpy
+"""
+    html = f"""<p>Hi,</p>
+<p>Your WinnerSpy verification code is:</p>
+<p style="font-size:28px;font-weight:800;letter-spacing:0.25em;margin:16px 0">{code}</p>
+<p>Enter this code on the <a href="{verify_url}">verification page</a> to start using WinnerSpy.</p>
+<p><small>Expires in 15 minutes.</small></p>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = to_email
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        if use_tls:
+            server = smtplib.SMTP(host, port, timeout=30)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(host, port, timeout=30)
+        if user and password:
+            server.login(user, password)
+        server.sendmail(from_addr, [to_email], msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[WinnerSpy] SMTP error: {e}")
+        return False
+
+
 def send_verification_email(to_email: str, verify_url: str) -> bool:
+    """Legacy link-based verify — kept for backwards compatibility."""
+    code = (verify_url or "").split("code=")[-1].split("&")[0] if "code=" in (verify_url or "") else ""
+    if code.isdigit() and len(code) == 6:
+        return send_verification_code_email(to_email, code)
     if not smtp_configured():
         return False
 

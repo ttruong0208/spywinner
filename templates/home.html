@@ -16,8 +16,9 @@
       <span class="trust-pill">✓ 5 free scans/day</span>
     </div>
     <div class="hero-cta">
-      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary btn-lg">Start free trial</a>
-      <a href="{{ url_for('login') }}" class="btn secondary btn-lg">Log in</a>
+      <a href="{{ url_for('register', plan='free') }}" class="btn primary btn-lg">Create free account</a>
+      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn secondary btn-lg">Start free trial</a>
+      <a href="{{ url_for('login') }}" class="btn ghost btn-lg">Log in</a>
     </div>
     <p class="muted small" style="margin-top:1rem">No credit card required · No install · {% if support_zalo_url %}<a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a>{% endif %}</p>
   </div>
@@ -372,7 +373,11 @@
     <div class="cta-band">
       <h2>Try it today</h2>
       <p>Free · No credit card required</p>
-      <a href="{{ url_for('choose_plan', plan='free') }}" class="btn primary btn-lg">Create account</a>
+      {% if registration_allowed %}
+    <a href="{{ url_for('register', plan='free') }}" class="btn primary">Create account</a>
+    {% else %}
+    <a href="{{ url_for('login') }}" class="btn primary">Log in</a>
+    {% endif %}
     </div>
   </div>
 </section>

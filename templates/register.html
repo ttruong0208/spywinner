@@ -9,13 +9,13 @@
     </a>
     {% if target_plan == 'pro' %}
     <h1>Sign up → Pro</h1>
-    <p class="sub">Verify your email first — then checkout Pro ({{ plan_prices.pro }}{{ plan_price_period }})</p>
+    <p class="sub">Create your account — we'll email a 6-digit code, then checkout Pro ({{ plan_prices.pro }}{{ plan_price_period }})</p>
     {% elif target_plan == 'vip' %}
     <h1>Sign up → VIP</h1>
-    <p class="sub">Verify your email first — then checkout VIP ({{ plan_prices.vip }}{{ plan_price_period }})</p>
+    <p class="sub">Create your account — we'll email a 6-digit code, then checkout VIP ({{ plan_prices.vip }}{{ plan_price_period }})</p>
     {% else %}
     <h1>Create a Free account</h1>
-    <p class="sub">After signing up you'll receive a confirmation email — click the link, then start researching products</p>
+    <p class="sub">Sign up with email and password. We'll send a <strong>6-digit verification code</strong> to your inbox — enter it to start using WinnerSpy.</p>
     {% endif %}
     <form method="post" class="form">
       {% include "_csrf.html" %}
@@ -31,8 +31,11 @@
       <label>Password <span class="hint">(minimum 10 characters, letters + numbers)</span>
         <input type="password" name="password" required minlength="10" autocomplete="new-password"/>
       </label>
+      <label>Confirm password
+        <input type="password" name="password_confirm" required minlength="10" autocomplete="new-password"/>
+      </label>
       <button type="submit" class="btn primary btn-lg">
-        {% if target_plan in ('pro', 'vip') %}Continue to {{ target_plan|upper }} checkout{% else %}Sign up for Free{% endif %}
+        {% if target_plan in ('pro', 'vip') %}Create account &amp; verify email{% else %}Sign up for Free{% endif %}
       </button>
     </form>
     <p class="auth-divider">Already have an account?</p>
