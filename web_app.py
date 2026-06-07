@@ -61,11 +61,11 @@ from winnerspy_plans import (
 from winnerspy_filters import list_presets_for_ui, preset_meta
 from winnerspy_gallery import build_gallery_cards
 from winnerspy_mail import (
+    email_configured,
+    email_status_message,
+    resend_configured,
     send_verification_code_email,
     send_welcome_email,
-    smtp_configured,
-    smtp_missing_fields,
-    smtp_status_message,
 )
 from winnerspy_trust import beta_guarantee_text, positioning_line, support_hours, support_zalo_url
 from winnerspy_scheduler import start_scheduler
@@ -332,7 +332,7 @@ def _send_verification_email_for_user(row: dict, *, async_send: bool = True) -> 
         code = db.rotate_verify_token(row["id"])
         row = db.get_user_by_id(row["id"]) or row
         code = str(row.get("verify_token") or code)
-    if not smtp_configured():
+    if not email_configured():
         if not production_mode():
             session["dev_verify_code"] = code
         return code, False
@@ -444,17 +444,15 @@ def register():
                             "ok",
                         )
                     elif production_mode():
-                        missing = smtp_missing_fields()
-                        if missing:
+                        if not email_configured():
                             flash(
-                                "Account created but email is not configured: "
-                                + ", ".join(missing),
+                                "Account created but email is not configured. "
+                                "Set WINNERSPY_RESEND_API_KEY on Render (free tier).",
                                 "error",
                             )
                         else:
                             flash(
-                                "Account created but email could not be sent. "
-                                "Check Gmail App Password and redeploy Render.",
+                                "Account created but email could not be sent. Check Resend API key / domain.",
                                 "error",
                             )
                     else:
@@ -503,7 +501,8 @@ def verify_pending():
     return render_template(
         "verify_pending.html",
         email=current_user.email,
-        smtp_ok=smtp_configured(),
+        smtp_ok=email_configured(),
+        resend_ok=resend_configured(),
         dev_verify_code=dev_code,
         production_mode=production_mode(),
     )
@@ -545,16 +544,17 @@ def resend_verification():
         if mail_sent:
             flash("Sending a new code to your email — check inbox in 1–2 minutes (Spam too).", "ok")
         elif production_mode():
-            missing = smtp_missing_fields()
-            if missing:
-                flash("Email not configured: " + ", ".join(missing), "error")
-            else:
+            if not email_configured():
                 flash(
-                    "Could not send email. Check Gmail App Password (16 chars, no spaces) "
-                    "and that WINNERSPY_SMTP_USER matches your Gmail address.",
+                    "Email not configured. Add WINNERSPY_RESEND_API_KEY on Render (Resend.com — works on free tier).",
                     "error",
                 )
-            print(f"[WinnerSpy] SMTP resend failed: {smtp_status_message()}")
+            else:
+                flash(
+                    "Could not send email. Check Resend dashboard — verify domain or use account email for testing.",
+                    "error",
+                )
+            print(f"[WinnerSpy] Email resend failed: {email_status_message()}")
         else:
             flash("Dev mode: use the test code shown below.", "warn")
     return redirect(url_for("verify_pending"))

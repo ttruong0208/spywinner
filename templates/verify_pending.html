@@ -47,8 +47,9 @@
   </div>
   {% elif production_mode and not smtp_ok %}
   <div class="flash error" style="margin-top:1.25rem">
-    <strong>Email not configured on server.</strong>
-    Set all of: <code>WINNERSPY_SMTP_HOST</code>, <code>USER</code>, <code>PASSWORD</code>, <code>FROM</code> on Render, then <strong>Manual Deploy</strong>.
+    <strong>Email not configured.</strong>
+    On Render free tier, add <code>WINNERSPY_RESEND_API_KEY</code> from
+    <a href="https://resend.com" target="_blank" rel="noopener">Resend.com</a> (SMTP/Gmail is blocked on free Render).
   </div>
   {% endif %}
 
