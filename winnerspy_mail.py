@@ -14,6 +14,8 @@ def smtp_configured() -> bool:
     return bool(
         os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
         and os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
+        and os.environ.get("WINNERSPY_SMTP_USER", "").strip()
+        and os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
     )
 
 

@@ -38,16 +38,17 @@
     <button type="submit" class="btn secondary" style="width:100%">Resend code</button>
   </form>
 
-  {% if not smtp_ok and dev_verify_code %}
+  {% if not production_mode and not smtp_ok and dev_verify_code %}
   <div class="flash warn" style="margin-top:1.25rem;text-align:center">
-    <strong>SMTP not configured</strong> — your verification code for testing:
+    <strong>Local dev only</strong> — test verification code:
     <p class="verify-code-display">{{ dev_verify_code }}</p>
-    <p class="muted small" style="margin:0.5rem 0 0">Set <code>WINNERSPY_SMTP_*</code> on Render so codes go to real inboxes.</p>
+    <p class="muted small" style="margin:0.5rem 0 0">On production, codes are sent by email only — never shown here.</p>
   </div>
-  {% elif not smtp_ok %}
-  <p class="muted small" style="margin-top:1rem">
-    Email delivery is not configured yet. Ask admin to set <code>WINNERSPY_SMTP_*</code> on the server.
-  </p>
+  {% elif production_mode and not smtp_ok %}
+  <div class="flash error" style="margin-top:1.25rem">
+    <strong>Email not configured on server.</strong>
+    Admin must add Gmail SMTP on Render (<code>WINNERSPY_SMTP_*</code>) so codes reach customer inboxes.
+  </div>
   {% endif %}
 
   <p class="muted small" style="margin-top:1.5rem;text-align:center">

@@ -362,17 +362,20 @@ def _redirect_logged_in_for_plan(plan: str):
     return redirect(url_for("checkout", plan=plan))
 
 
-def _send_verification_email_for_user(row: dict) -> str:
+def _send_verification_email_for_user(row: dict) -> tuple[str, bool]:
     code = str(row.get("verify_token") or "").strip()
     if not code or not db.verify_token_valid(row) or len(code) != 6:
         code = db.rotate_verify_token(row["id"])
         row = db.get_user_by_id(row["id"]) or row
         code = str(row.get("verify_token") or code)
-    if _send_user_verification_code(row["email"], code):
+    sent = _send_user_verification_code(row["email"], code)
+    if sent:
         session.pop("dev_verify_code", None)
-    else:
+    elif not production_mode():
         session["dev_verify_code"] = code
-    return code
+    else:
+        session.pop("dev_verify_code", None)
+    return code, sent
 
 
 @app.route("/choose-plan/<plan>")
@@ -468,15 +471,21 @@ def register():
                     row = db.get_user_by_id(uid)
                     login_user(User(row))
                     session["pending_plan"] = target_plan
-                    _send_verification_email_for_user(row)
-                    if smtp_configured():
+                    _code, mail_sent = _send_verification_email_for_user(row)
+                    if mail_sent:
                         flash(
                             "Account created. We sent a 6-digit code to your email — enter it to continue.",
                             "ok",
                         )
+                    elif production_mode():
+                        flash(
+                            "Account created but we could not send email yet. "
+                            "Click Resend code after admin configures mail, or contact support.",
+                            "error",
+                        )
                     else:
                         flash(
-                            "Account created. Enter the verification code shown below (SMTP not configured yet).",
+                            "Dev mode: SMTP not configured — use the test code shown below.",
                             "warn",
                         )
                     return redirect(url_for("verify_pending"))
@@ -516,12 +525,13 @@ def verify_pending():
                 flash("Sent a getting-started email — check your inbox.", "ok")
             return _redirect_after_auth(session.get("pending_plan", "free"))
 
-    dev_code = session.get("dev_verify_code")
+    dev_code = session.get("dev_verify_code") if not production_mode() else None
     return render_template(
         "verify_pending.html",
         email=current_user.email,
         smtp_ok=smtp_configured(),
         dev_verify_code=dev_code,
+        production_mode=production_mode(),
     )
 
 
@@ -557,11 +567,16 @@ def resend_verification():
     else:
         db.rotate_verify_token(current_user.id)
         row = db.get_user_by_id(current_user.id)
-        _send_verification_email_for_user(row)
-        if smtp_configured():
+        _code, mail_sent = _send_verification_email_for_user(row)
+        if mail_sent:
             flash("New verification code sent to your email.", "ok")
+        elif production_mode():
+            flash(
+                "Could not send email. Admin must set WINNERSPY_SMTP_* on Render (Gmail App Password).",
+                "error",
+            )
         else:
-            flash("SMTP not configured — use the code shown on this page.", "warn")
+            flash("Dev mode: use the test code shown below.", "warn")
     return redirect(url_for("verify_pending"))
 
 
