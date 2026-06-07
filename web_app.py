@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import os
 import secrets
+import threading
 from functools import wraps
 from pathlib import Path
 
@@ -59,66 +60,13 @@ from winnerspy_plans import (
 )
 from winnerspy_filters import list_presets_for_ui, preset_meta
 from winnerspy_gallery import build_gallery_cards
-from winnerspy_mail import send_welcome_email, smtp_configured
-
-
-def _send_user_verification_code(to_email: str, code: str) -> bool:
-    """Send 6-digit code — works even if winnerspy_mail on server is outdated."""
-    try:
-        from winnerspy_mail import send_verification_code_email
-
-        return send_verification_code_email(to_email, code)
-    except ImportError:
-        pass
-
-    if not smtp_configured():
-        return False
-
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
-    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
-    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
-    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
-    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
-    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
-    verify_url = f"{app_base_url()}/verify-pending"
-
-    subject = f"Your WinnerSpy verification code: {code}"
-    text = (
-        f"Hi,\n\nYour WinnerSpy verification code is:\n\n  {code}\n\n"
-        f"Enter it here: {verify_url}\n\nCode expires in 15 minutes.\n\n— WinnerSpy\n"
-    )
-    html = (
-        f"<p>Hi,</p><p>Your WinnerSpy verification code is:</p>"
-        f'<p style="font-size:28px;font-weight:800;letter-spacing:0.25em">{code}</p>'
-        f'<p>Enter it on the <a href="{verify_url}">verification page</a>.</p>'
-        f"<p><small>Expires in 15 minutes.</small></p>"
-    )
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = from_addr
-    msg["To"] = to_email
-    msg.attach(MIMEText(text, "plain", "utf-8"))
-    msg.attach(MIMEText(html, "html", "utf-8"))
-
-    try:
-        if use_tls:
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(host, port, timeout=30)
-        if user and password:
-            server.login(user, password)
-        server.sendmail(from_addr, [to_email], msg.as_string())
-        server.quit()
-        return True
-    except Exception as exc:
-        print(f"[WinnerSpy] Verification mail error: {exc}")
-        return False
+from winnerspy_mail import (
+    send_verification_code_email,
+    send_welcome_email,
+    smtp_configured,
+    smtp_missing_fields,
+    smtp_status_message,
+)
 from winnerspy_trust import beta_guarantee_text, positioning_line, support_hours, support_zalo_url
 from winnerspy_scheduler import start_scheduler
 from winnerspy_security import (
@@ -131,6 +79,22 @@ from winnerspy_security import (
     validate_csrf,
     validate_production_config,
 )
+
+
+def _send_user_verification_code(to_email: str, code: str) -> bool:
+    try:
+        return send_verification_code_email(to_email, code)
+    except Exception as exc:
+        print(f"[WinnerSpy] Verification mail error: {exc}")
+        return False
+
+
+def _queue_verification_email(email: str, code: str) -> None:
+    threading.Thread(
+        target=_send_user_verification_code,
+        args=(email, code),
+        daemon=True,
+    ).start()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("WINNERSPY_SECRET", secrets.token_hex(16))
@@ -362,19 +326,21 @@ def _redirect_logged_in_for_plan(plan: str):
     return redirect(url_for("checkout", plan=plan))
 
 
-def _send_verification_email_for_user(row: dict) -> tuple[str, bool]:
+def _send_verification_email_for_user(row: dict, *, async_send: bool = True) -> tuple[str, bool]:
     code = str(row.get("verify_token") or "").strip()
     if not code or not db.verify_token_valid(row) or len(code) != 6:
         code = db.rotate_verify_token(row["id"])
         row = db.get_user_by_id(row["id"]) or row
         code = str(row.get("verify_token") or code)
+    if not smtp_configured():
+        if not production_mode():
+            session["dev_verify_code"] = code
+        return code, False
+    session.pop("dev_verify_code", None)
+    if async_send:
+        _queue_verification_email(row["email"], code)
+        return code, True
     sent = _send_user_verification_code(row["email"], code)
-    if sent:
-        session.pop("dev_verify_code", None)
-    elif not production_mode():
-        session["dev_verify_code"] = code
-    else:
-        session.pop("dev_verify_code", None)
     return code, sent
 
 
@@ -474,15 +440,23 @@ def register():
                     _code, mail_sent = _send_verification_email_for_user(row)
                     if mail_sent:
                         flash(
-                            "Account created. We sent a 6-digit code to your email — enter it to continue.",
+                            "Account created. We're sending a 6-digit code to your email — check inbox in 1–2 minutes.",
                             "ok",
                         )
                     elif production_mode():
-                        flash(
-                            "Account created but we could not send email yet. "
-                            "Click Resend code after admin configures mail, or contact support.",
-                            "error",
-                        )
+                        missing = smtp_missing_fields()
+                        if missing:
+                            flash(
+                                "Account created but email is not configured: "
+                                + ", ".join(missing),
+                                "error",
+                            )
+                        else:
+                            flash(
+                                "Account created but email could not be sent. "
+                                "Check Gmail App Password and redeploy Render.",
+                                "error",
+                            )
                     else:
                         flash(
                             "Dev mode: SMTP not configured — use the test code shown below.",
@@ -569,12 +543,18 @@ def resend_verification():
         row = db.get_user_by_id(current_user.id)
         _code, mail_sent = _send_verification_email_for_user(row)
         if mail_sent:
-            flash("New verification code sent to your email.", "ok")
+            flash("Sending a new code to your email — check inbox in 1–2 minutes (Spam too).", "ok")
         elif production_mode():
-            flash(
-                "Could not send email. Admin must set WINNERSPY_SMTP_* on Render (Gmail App Password).",
-                "error",
-            )
+            missing = smtp_missing_fields()
+            if missing:
+                flash("Email not configured: " + ", ".join(missing), "error")
+            else:
+                flash(
+                    "Could not send email. Check Gmail App Password (16 chars, no spaces) "
+                    "and that WINNERSPY_SMTP_USER matches your Gmail address.",
+                    "error",
+                )
+            print(f"[WinnerSpy] SMTP resend failed: {smtp_status_message()}")
         else:
             flash("Dev mode: use the test code shown below.", "warn")
     return redirect(url_for("verify_pending"))

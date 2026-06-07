@@ -33,10 +33,11 @@
     <button type="submit" class="btn primary btn-lg" style="width:100%">Verify &amp; continue</button>
   </form>
 
-  <form method="post" action="{{ url_for('resend_verification') }}" style="margin-top:0.75rem">
+  <form method="post" action="{{ url_for('resend_verification') }}" style="margin-top:0.75rem" class="js-resend-form">
     {% include "_csrf.html" %}
-    <button type="submit" class="btn secondary" style="width:100%">Resend code</button>
+    <button type="submit" class="btn secondary js-resend-btn" style="width:100%">Resend code</button>
   </form>
+  <p class="muted small js-resend-hint" style="display:none;margin-top:0.5rem;text-align:center">Sending email…</p>
 
   {% if not production_mode and not smtp_ok and dev_verify_code %}
   <div class="flash warn" style="margin-top:1.25rem;text-align:center">
@@ -47,7 +48,7 @@
   {% elif production_mode and not smtp_ok %}
   <div class="flash error" style="margin-top:1.25rem">
     <strong>Email not configured on server.</strong>
-    Admin must add Gmail SMTP on Render (<code>WINNERSPY_SMTP_*</code>) so codes reach customer inboxes.
+    Set all of: <code>WINNERSPY_SMTP_HOST</code>, <code>USER</code>, <code>PASSWORD</code>, <code>FROM</code> on Render, then <strong>Manual Deploy</strong>.
   </div>
   {% endif %}
 
@@ -57,4 +58,19 @@
     {% if support_zalo_url %} · <a href="{{ support_zalo_url }}" target="_blank" rel="noopener">Contact support</a>{% endif %}
   </p>
 </section>
+<script>
+(function () {
+  var form = document.querySelector(".js-resend-form");
+  if (!form) return;
+  form.addEventListener("submit", function () {
+    var btn = form.querySelector(".js-resend-btn");
+    var hint = document.querySelector(".js-resend-hint");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+    }
+    if (hint) hint.style.display = "block";
+  });
+})();
+</script>
 {% endblock %}

@@ -6,17 +6,75 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-
 from winnerspy_config import app_base_url
 
 
 def smtp_configured() -> bool:
-    return bool(
-        os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
-        and os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
-        and os.environ.get("WINNERSPY_SMTP_USER", "").strip()
-        and os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
-    )
+    return not smtp_missing_fields()
+
+
+def smtp_missing_fields() -> list[str]:
+    required = {
+        "WINNERSPY_SMTP_HOST": os.environ.get("WINNERSPY_SMTP_HOST", ""),
+        "WINNERSPY_SMTP_FROM": os.environ.get("WINNERSPY_SMTP_FROM", ""),
+        "WINNERSPY_SMTP_USER": os.environ.get("WINNERSPY_SMTP_USER", ""),
+        "WINNERSPY_SMTP_PASSWORD": os.environ.get("WINNERSPY_SMTP_PASSWORD", ""),
+    }
+    return [key for key, val in required.items() if not (val or "").strip()]
+
+
+def smtp_status_message() -> str:
+    missing = smtp_missing_fields()
+    if missing:
+        return "Missing on Render: " + ", ".join(missing)
+    return "SMTP env vars present"
+
+
+def _smtp_timeout() -> int:
+    try:
+        return max(5, min(int(os.environ.get("WINNERSPY_SMTP_TIMEOUT", "10")), 30))
+    except ValueError:
+        return 10
+
+
+def _smtp_settings() -> dict:
+    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
+    password = password.replace(" ", "")
+    return {
+        "host": os.environ.get("WINNERSPY_SMTP_HOST", "").strip(),
+        "port": int(os.environ.get("WINNERSPY_SMTP_PORT", "587")),
+        "user": os.environ.get("WINNERSPY_SMTP_USER", "").strip(),
+        "password": password,
+        "from_addr": os.environ.get("WINNERSPY_SMTP_FROM", "").strip(),
+        "use_tls": os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes"),
+        "timeout": _smtp_timeout(),
+    }
+
+
+def _deliver_message(msg: MIMEMultipart, to_email: str) -> bool:
+    if not smtp_configured():
+        return False
+    cfg = _smtp_settings()
+    server = None
+    try:
+        if cfg["use_tls"]:
+            server = smtplib.SMTP(cfg["host"], cfg["port"], timeout=cfg["timeout"])
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=cfg["timeout"])
+        if cfg["user"] and cfg["password"]:
+            server.login(cfg["user"], cfg["password"])
+        server.sendmail(cfg["from_addr"], [to_email], msg.as_string())
+        return True
+    except Exception as exc:
+        print(f"[WinnerSpy] SMTP error: {exc}")
+        return False
+    finally:
+        if server is not None:
+            try:
+                server.quit()
+            except Exception:
+                pass
 
 
 def build_verify_url(token: str) -> str:
@@ -26,13 +84,6 @@ def build_verify_url(token: str) -> str:
 def send_welcome_email(to_email: str, dashboard_url: str) -> bool:
     if not smtp_configured():
         return False
-
-    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
-    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
-    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
-    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
-    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
-    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
 
     subject = "Welcome to WinnerSpy — run your first report"
     text = f"""Hi,
@@ -44,45 +95,18 @@ First 3 steps (5–15 min):
 2. Use a specific keyword (e.g. magnetic eyelash kit) — avoid broad terms like "cleaning"
 3. Preset "Balanced" → Start report → download report.html
 
-Notes:
-• Source: Facebook Ads Library (your keywords), not a global ad database like AdSpy.
-• "Strict winner" may return 0 matches on broad keywords — scored.csv & ads library still available.
-
-Need help? Reply to this email or contact support on the site.
-
 — WinnerSpy
 """
     html = f"""<p>Hi,</p>
-<p>Your email is verified. Create your <strong>first product report</strong>:</p>
-<ol>
-<li><a href="{dashboard_url}">Open dashboard</a></li>
-<li>Specific keyword (e.g. <em>portable blender</em>) — preset <strong>Balanced</strong></li>
-<li><strong>Start report</strong> → download <code>report.html</code></li>
-</ol>
-<p><small>WinnerSpy uses Facebook Ads Library for your keywords — transparent limits, fair pricing.</small></p>
-<p><a href="{dashboard_url}" style="display:inline-block;padding:12px 24px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Open WinnerSpy</a></p>"""
+<p>Your email is verified. <a href="{dashboard_url}">Open your dashboard</a> and run your first report.</p>"""
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = from_addr
+    msg["From"] = _smtp_settings()["from_addr"]
     msg["To"] = to_email
     msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
-
-    try:
-        if use_tls:
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(host, port, timeout=30)
-        if user and password:
-            server.login(user, password)
-        server.sendmail(from_addr, [to_email], msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"[WinnerSpy] Welcome mail error: {e}")
-        return False
+    return _deliver_message(msg, to_email)
 
 
 def send_verification_code_email(to_email: str, code: str) -> bool:
@@ -90,14 +114,7 @@ def send_verification_code_email(to_email: str, code: str) -> bool:
     if not smtp_configured():
         return False
 
-    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
-    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
-    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
-    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
-    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
-    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
     verify_url = f"{app_base_url()}/verify-pending"
-
     subject = f"Your WinnerSpy verification code: {code}"
     text = f"""Hi,
 
@@ -120,25 +137,11 @@ Code expires in 15 minutes. If you did not sign up, ignore this email.
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = from_addr
+    msg["From"] = _smtp_settings()["from_addr"]
     msg["To"] = to_email
     msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
-
-    try:
-        if use_tls:
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(host, port, timeout=30)
-        if user and password:
-            server.login(user, password)
-        server.sendmail(from_addr, [to_email], msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"[WinnerSpy] SMTP error: {e}")
-        return False
+    return _deliver_message(msg, to_email)
 
 
 def send_verification_email(to_email: str, verify_url: str) -> bool:
@@ -149,48 +152,14 @@ def send_verification_email(to_email: str, verify_url: str) -> bool:
     if not smtp_configured():
         return False
 
-    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
-    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
-    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
-    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
-    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
-    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
-
     subject = "Verify your email — WinnerSpy"
-    text = f"""Hi,
-
-Thanks for signing up for WinnerSpy. Click the link below to activate your account:
-
-{verify_url}
-
-Link expires in 48 hours. If you did not sign up, ignore this email.
-
-— WinnerSpy
-"""
-    html = f"""<p>Hi,</p>
-<p>Thanks for signing up for <strong>WinnerSpy</strong>. Confirm your email:</p>
-<p><a href="{verify_url}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Verify email</a></p>
-<p>Or copy: <a href="{verify_url}">{verify_url}</a></p>
-<p><small>Expires in 48 hours.</small></p>"""
+    text = f"Hi,\n\nConfirm your email:\n{verify_url}\n\n— WinnerSpy\n"
+    html = f'<p>Hi,</p><p><a href="{verify_url}">Verify email</a></p>'
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = from_addr
+    msg["From"] = _smtp_settings()["from_addr"]
     msg["To"] = to_email
     msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
-
-    try:
-        if use_tls:
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(host, port, timeout=30)
-        if user and password:
-            server.login(user, password)
-        server.sendmail(from_addr, [to_email], msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"[WinnerSpy] SMTP error: {e}")
-        return False
+    return _deliver_message(msg, to_email)
