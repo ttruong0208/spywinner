@@ -59,11 +59,66 @@ from winnerspy_plans import (
 )
 from winnerspy_filters import list_presets_for_ui, preset_meta
 from winnerspy_gallery import build_gallery_cards
-from winnerspy_mail import (
-    send_verification_code_email,
-    send_welcome_email,
-    smtp_configured,
-)
+from winnerspy_mail import send_welcome_email, smtp_configured
+
+
+def _send_user_verification_code(to_email: str, code: str) -> bool:
+    """Send 6-digit code — works even if winnerspy_mail on server is outdated."""
+    try:
+        from winnerspy_mail import send_verification_code_email
+
+        return send_verification_code_email(to_email, code)
+    except ImportError:
+        pass
+
+    if not smtp_configured():
+        return False
+
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    host = os.environ.get("WINNERSPY_SMTP_HOST", "").strip()
+    port = int(os.environ.get("WINNERSPY_SMTP_PORT", "587"))
+    user = os.environ.get("WINNERSPY_SMTP_USER", "").strip()
+    password = os.environ.get("WINNERSPY_SMTP_PASSWORD", "").strip()
+    from_addr = os.environ.get("WINNERSPY_SMTP_FROM", "").strip()
+    use_tls = os.environ.get("WINNERSPY_SMTP_TLS", "1").strip().lower() in ("1", "true", "yes")
+    verify_url = f"{app_base_url()}/verify-pending"
+
+    subject = f"Your WinnerSpy verification code: {code}"
+    text = (
+        f"Hi,\n\nYour WinnerSpy verification code is:\n\n  {code}\n\n"
+        f"Enter it here: {verify_url}\n\nCode expires in 15 minutes.\n\n— WinnerSpy\n"
+    )
+    html = (
+        f"<p>Hi,</p><p>Your WinnerSpy verification code is:</p>"
+        f'<p style="font-size:28px;font-weight:800;letter-spacing:0.25em">{code}</p>'
+        f'<p>Enter it on the <a href="{verify_url}">verification page</a>.</p>'
+        f"<p><small>Expires in 15 minutes.</small></p>"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = to_email
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        if use_tls:
+            server = smtplib.SMTP(host, port, timeout=30)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(host, port, timeout=30)
+        if user and password:
+            server.login(user, password)
+        server.sendmail(from_addr, [to_email], msg.as_string())
+        server.quit()
+        return True
+    except Exception as exc:
+        print(f"[WinnerSpy] Verification mail error: {exc}")
+        return False
 from winnerspy_trust import beta_guarantee_text, positioning_line, support_hours, support_zalo_url
 from winnerspy_scheduler import start_scheduler
 from winnerspy_security import (
@@ -313,7 +368,7 @@ def _send_verification_email_for_user(row: dict) -> str:
         code = db.rotate_verify_token(row["id"])
         row = db.get_user_by_id(row["id"]) or row
         code = str(row.get("verify_token") or code)
-    if send_verification_code_email(row["email"], code):
+    if _send_user_verification_code(row["email"], code):
         session.pop("dev_verify_code", None)
     else:
         session["dev_verify_code"] = code
