@@ -103,3 +103,5 @@ systemctl restart winnerspy-web winnerspy-chrome
 | Hết RAM | Nâng gói 4GB hoặc reboot VPS |
 | Email không gửi | Kiểm tra Resend key trong `/etc/winnerspy/env` |
 | FB chặn / captcha | Cần login Facebook trong Chrome VPS (hỏi support nếu cần VNC) |
+| TikTok = unavailable | Chrome **không** được chạy `--headless`. Chạy `bash deploy/fix-chrome-tiktok.sh` rồi `systemctl restart winnerspy-chrome` |
+| GTrend = no data | Bình thường với tên SP quá dài; code đã rút gọn keyword. Thử lại report sau vài phút (Google rate limit) |

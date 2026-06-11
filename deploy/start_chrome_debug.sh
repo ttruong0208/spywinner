@@ -28,6 +28,7 @@ if ! pgrep -x Xvfb >/dev/null 2>&1; then
   fi
 fi
 
+# Không dùng --headless: TikTok chặn headless → báo cáo "unavailable".
 exec "$CHROME" \
   --remote-debugging-port="$PORT" \
   --remote-debugging-address=127.0.0.1 \
@@ -35,5 +36,7 @@ exec "$CHROME" \
   --no-first-run \
   --disable-session-crashed-bubble \
   --disable-dev-shm-usage \
+  --disable-blink-features=AutomationControlled \
+  --window-size=1280,720 \
   --no-sandbox \
   "https://www.facebook.com/ads/library/"

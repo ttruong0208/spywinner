@@ -215,12 +215,55 @@ def _tiktok_wait_for_content(page, max_wait_sec=18) -> bool:
     return False
 
 
+def shorten_search_query(text: str, max_words: int = 5) -> str:
+    """Rút gọn tên SP cho TikTok / Google Trends (cụm dài thường không có dữ liệu)."""
+    raw = re.sub(r"[^\w\s-]", " ", (text or "").lower())
+    words = [w for w in raw.split() if len(w) > 1]
+    stop = {
+        "the", "a", "an", "for", "and", "with", "in", "on", "of", "to",
+        "kit", "set", "pack", "free", "new", "best", "pro", "plus",
+        "mess", "all", "one", "1", "2", "3", "4", "5", "6", "7", "8",
+    }
+    kept = [w for w in words if w not in stop][:max_words]
+    if kept:
+        return " ".join(kept)
+    return (text or "").strip()[:60]
+
+
+def _tiktok_collect_views_js(page) -> list[int]:
+    try:
+        texts = page.evaluate(
+            """() => {
+                const out = [];
+                const nodes = document.querySelectorAll(
+                    'strong[data-e2e*="video-views"], strong, span'
+                );
+                for (const el of nodes) {
+                    const t = (el.innerText || '').trim();
+                    if (!t || t.length > 40) continue;
+                    if (/views|lượt xem|\\d+[.,]?\\d*[KkMm]/i.test(t)) {
+                        const inCard = el.closest(
+                            'a[href*="/video/"], [data-e2e*="video"], [data-e2e*="search"]'
+                        );
+                        if (inCard) out.push(t);
+                    }
+                }
+                return [...new Set(out)].slice(0, 16);
+            }"""
+        )
+        views = [convert_tiktok_view(t) for t in (texts or [])]
+        return [v for v in views if v > 0]
+    except Exception:
+        return []
+
+
 def _tiktok_collect_views(page) -> list[int]:
     views = []
     selectors = (
         'strong[data-e2e*="video-views"]',
         'strong:has-text("views")',
         'strong:has-text("lượt xem")',
+        '[data-e2e="search-card-desc"] strong',
     )
     for sel in selectors:
         try:
@@ -236,6 +279,8 @@ def _tiktok_collect_views(page) -> list[int]:
                 break
         except Exception:
             continue
+    if not views:
+        views = _tiktok_collect_views_js(page)
     return views
 
 
@@ -257,17 +302,32 @@ def _tiktok_try_reload(page) -> bool:
         return False
 
 
+def _tiktok_prepare_page(page) -> None:
+    try:
+        page.set_viewport_size({"width": 1280, "height": 720})
+    except Exception:
+        pass
+    try:
+        page.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
+    except Exception:
+        pass
+
+
 def get_tiktok_signals(page, product_name):
     """Search TikTok — đợi SPA load giống user; có video thì đọc view dù banner lỗi còn trên DOM."""
-    search_url = f"https://www.tiktok.com/search/video?q={urllib.parse.quote(product_name)}"
-    debug(f"[TIKTOK] Researching: {product_name}")
+    query = shorten_search_query(product_name) or (product_name or "").strip()
+    search_url = f"https://www.tiktok.com/search/video?q={urllib.parse.quote(query)}"
+    debug(f"[TIKTOK] Researching: {query} (from: {product_name})")
 
     results = _tiktok_result_base()
+    _tiktok_prepare_page(page)
 
     for attempt in range(3):
         try:
             page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
-            _tiktok_wait_for_content(page, max_wait_sec=12)
+            _tiktok_wait_for_content(page, max_wait_sec=18)
 
             try:
                 page.mouse.wheel(0, 1200)
@@ -319,14 +379,24 @@ def get_tiktok_signals(page, product_name):
     return results
 
 def pick_tiktok_query(row):
-    """English product name works best on TikTok search."""
+    """English product name works best on TikTok search (short query)."""
+    product = (row.get("product") or "").strip()
+    if product and product.lower() not in {"unknown", "none"}:
+        return shorten_search_query(product)
+    signature = (row.get("signature") or "").strip()
+    if signature:
+        return shorten_search_query(signature)
+    return shorten_search_query(
+        slug_to_name(row.get("sample_slug") or row.get("slug") or "")
+    )
+
+
+def pick_gtrends_query(row):
+    """Google Trends: chỉ dùng tên SP (cột product), không rút gọn."""
     product = (row.get("product") or "").strip()
     if product and product.lower() not in {"unknown", "none"}:
         return product
-    signature = (row.get("signature") or "").strip()
-    if signature:
-        return signature
-    return slug_to_name(row.get("sample_slug") or row.get("slug") or "")
+    return ""
 
 
 def _combine_tiktok_row(row, tt_data, query):
@@ -428,6 +498,7 @@ def run_tiktok_validator(
                 tik_page = context.new_page()
                 try:
                     tik_page.set_extra_http_headers(ua_headers)
+                    _tiktok_prepare_page(tik_page)
                     tt_data = get_tiktok_signals(tik_page, query)
                     if tt_data.get("tt_status") == "tiktok_error":
                         print("  → TikTok server error (no views) — still saving product row")
@@ -452,11 +523,12 @@ def run_tiktok_validator(
 
 def get_google_trends_signal(keyword, geo="US"):
     """Google Trends (pytrends) — VIP. Không cần Chrome."""
+    kw = (keyword or "").strip()
     base = {
         "gt_interest": 0,
-        "gt_label": "low",
+        "gt_label": "no data",
         "gt_status": "skipped",
-        "gt_query": keyword,
+        "gt_query": kw,
     }
     try:
         from pytrends.request import TrendReq
@@ -464,35 +536,49 @@ def get_google_trends_signal(keyword, geo="US"):
         base["gt_status"] = "no_pytrends"
         return base
 
-    kw = (keyword or "").strip()[:80]
     if not kw:
         base["gt_status"] = "empty"
         return base
 
-    try:
-        geo_code = "" if (geo or "").upper() == "ALL" else (geo or "US")
-        pytrend = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
-        pytrend.build_payload([kw], timeframe="today 3-m", geo=geo_code)
-        df = pytrend.interest_over_time()
-        if df is None or df.empty or kw not in df.columns:
-            base["gt_status"] = "no_data"
+    geo_code = "" if (geo or "").upper() == "ALL" else (geo or "US")
+    last_err = ""
+    for attempt in range(3):
+        try:
+            pytrend = TrendReq(
+                hl="en-US",
+                tz=360,
+                timeout=(12, 30),
+                retries=2,
+                backoff_factor=0.2,
+            )
+            pytrend.build_payload([kw], timeframe="today 12-m", geo=geo_code)
+            df = pytrend.interest_over_time()
+            if df is None or df.empty or kw not in df.columns:
+                base["gt_status"] = "no_data"
+                base["gt_label"] = "no data"
+                return base
+            series = df[kw]
+            recent = float(series.tail(8).mean())
+            peak = float(series.max())
+            base["gt_interest"] = int(round(recent))
+            if recent >= 65 or (peak >= 75 and recent >= 35):
+                base["gt_label"] = "rising"
+            elif recent >= 25:
+                base["gt_label"] = "stable"
+            else:
+                base["gt_label"] = "low"
+            base["gt_status"] = "ok"
             return base
-        series = df[kw]
-        recent = float(series.tail(8).mean())
-        peak = float(series.max())
-        base["gt_interest"] = int(round(recent))
-        if recent >= 65 or (peak >= 75 and recent >= 35):
-            base["gt_label"] = "rising"
-        elif recent >= 25:
-            base["gt_label"] = "stable"
-        else:
-            base["gt_label"] = "low"
-        base["gt_status"] = "ok"
-        return base
-    except Exception as e:
-        base["gt_status"] = "error"
-        base["gt_note"] = str(e)[:120]
-        return base
+        except Exception as e:
+            last_err = str(e)[:120]
+            if attempt < 2:
+                time.sleep(4 + attempt * 4)
+                continue
+            base["gt_status"] = "error"
+            base["gt_label"] = "error"
+            base["gt_note"] = last_err
+            return base
+    return base
 
 
 def run_google_trends_enrich(
@@ -522,15 +608,20 @@ def run_google_trends_enrich(
     print(f"\n--- GOOGLE TRENDS: {len(pool)} products (geo={geo}) ---")
     gt_by_key = {}
     for r in pool:
-        q = pick_tiktok_query(r)
-        rk = (r.get("signature") or r.get("product") or q).strip()
+        q = pick_gtrends_query(r)
+        rk = (r.get("product") or "").strip()
+        if not q:
+            print("  Trends: skip (no product name)")
+            continue
         print(f"  Trends: {q}...")
         gt = get_google_trends_signal(q, geo=geo)
         try:
             fp = float(r.get("final_priority") or r.get("win_score") or 0)
         except (TypeError, ValueError):
             fp = 0.0
-        bonus = {"rising": 8, "stable": 3, "low": 0}.get(gt.get("gt_label"), 0)
+        bonus = {"rising": 8, "stable": 3, "low": 0, "no data": 0, "error": 0}.get(
+            gt.get("gt_label"), 0
+        )
         gt["final_priority"] = round(fp + bonus, 2)
         gt_by_key[rk] = gt
         time.sleep(2)
@@ -538,7 +629,7 @@ def run_google_trends_enrich(
     enriched = []
     for row in rows:
         r = dict(row)
-        rk = (r.get("signature") or r.get("product") or "").strip()
+        rk = (r.get("product") or "").strip()
         if rk in gt_by_key:
             pack = gt_by_key[rk]
             r.update({k: v for k, v in pack.items() if k.startswith("gt_")})
