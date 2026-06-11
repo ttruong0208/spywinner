@@ -1,0 +1,21 @@
+[Unit]
+Description=WinnerSpy Web (Gunicorn)
+After=network.target winnerspy-chrome.service
+Wants=winnerspy-chrome.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/winnerspy/spywinner
+EnvironmentFile=/etc/winnerspy/env
+ExecStart=/opt/winnerspy/spywinner/venv/bin/gunicorn web_app:app \
+  --bind 127.0.0.1:8000 \
+  --workers 1 \
+  --threads 4 \
+  --timeout 300
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

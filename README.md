@@ -41,7 +41,11 @@ WINNERSPY_PAYPAL_ME=your-paypal-me
 6. Render → **Settings → Custom Domains** → add `winnerspy.app`
 7. Namecheap → **Advanced DNS** → add records Render shows (usually CNAME)
 
-Facebook scan on cloud needs a **VPS with Chrome** later (`WINNERSPY_SAAS_MODE=1`). Landing, signup, checkout work on Render alone.
+Facebook scan on cloud needs a **VPS with Chrome** (`WINNERSPY_SAAS_MODE=1`). See **[deploy/VPS.md](deploy/VPS.md)** for Ubuntu copy-paste setup.
+
+## Deploy web (Render — signup/email only)
+
+Render alone cannot run Facebook scans. Use Render only for landing/signup, or skip Render and use VPS for everything (recommended).
 
 ## License
 

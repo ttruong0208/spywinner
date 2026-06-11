@@ -1,0 +1,14 @@
+[Unit]
+Description=WinnerSpy Chrome CDP (Facebook scan)
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/winnerspy/env
+Environment=APP_DIR=/opt/winnerspy/spywinner
+ExecStart=/opt/winnerspy/spywinner/deploy/start_chrome_debug.sh
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
