@@ -806,47 +806,74 @@ def export_html_report(
             .replace(">", "&gt;")
         )
 
+    report_date = datetime.now().strftime("%d/%m/%Y %H:%M")
     body_rows = []
     for i, r in enumerate(rows, start=1):
         product = esc(r.get("product") or r.get("signature") or "?")
         domain = esc(r.get("sample_domain") or r.get("domain") or "")
-        score = esc(r.get("final_priority") or r.get("win_score") or "")
+        score_raw = r.get("final_priority") or r.get("win_score") or 0
+        try:
+            score_num = float(score_raw)
+        except (TypeError, ValueError):
+            score_num = 0.0
+        score = esc(int(score_num) if score_num == int(score_num) else round(score_num, 1))
         tier = quality_tier(r)
+        rank_cls = "rank rank-top" if i == 1 else "rank"
         qbadge = (
             f"<span class='qbadge {tier['css']}' title='{esc(tier['hint'])}'>"
             f"{esc(tier['label'])}</span>"
         )
-        ads = esc(r.get("ads_count") or "")
+        ads = esc(r.get("ads_count") or "—")
         max_days = (r.get("max_days") or "").strip()
         med_days = (r.get("median_days") or "").strip()
         if max_days:
-            days_tip = f"median {med_days}d" if med_days else "longest-running ad in group"
-            days_cell = f'<span title="{esc(days_tip)}">{esc(max_days)}d</span>'
+            days_tip = f"Trung vị {med_days} ngày" if med_days else "Ad chạy lâu nhất trong nhóm"
+            days_cell = (
+                f'<div class="days"><strong>{esc(max_days)}</strong>'
+                f'<span class="days-u">ngày</span></div>'
+                f'<div class="days-tip">{esc(days_tip)}</div>'
+            )
         else:
-            days_cell = "—"
+            days_cell = '<span class="muted">—</span>'
         tt = ""
         gt = ""
         if has_gt:
-            gt = f"<td>{esc(r.get('gt_label'))}</td><td>{esc(r.get('gt_interest'))}</td>"
+            gt = (
+                f"<td><span class='pill gt'>{esc(r.get('gt_label') or '—')}</span></td>"
+                f"<td class='num'>{esc(r.get('gt_interest') or '—')}</td>"
+            )
         if has_tiktok:
             tt = (
-                f"<td>{esc(r.get('tt_label'))}</td>"
-                f"<td>{esc(r.get('tt_top_views'))}</td>"
+                f"<td><span class='pill tt'>{esc(r.get('tt_label') or '—')}</span></td>"
+                f"<td class='num'>{esc(r.get('tt_top_views') or '—')}</td>"
             )
         shop_url = (r.get("sample_url") or "").strip()
         links = []
         if shop_url:
-            links.append(f'<a href="{esc(shop_url)}" target="_blank" rel="noopener" class="lnk">Shop</a>')
+            links.append(
+                f'<a href="{esc(shop_url)}" target="_blank" rel="noopener" class="btn-link shop">'
+                f'<span>Shop</span></a>'
+            )
         fb_url, fb_n = ad_library_link(r.get("ad_ids") or "")
         if fb_url:
             fb_label = f"FB ×{fb_n}" if fb_n > 1 else "FB Ad"
             links.append(
-                f'<a href="{esc(fb_url)}" target="_blank" rel="noopener" class="lnk fb">{fb_label}</a>'
+                f'<a href="{esc(fb_url)}" target="_blank" rel="noopener" class="btn-link fb">'
+                f'<span>{esc(fb_label)}</span></a>'
             )
-        link_cell = " ".join(links) if links else "—"
+        link_cell = f'<div class="link-row">{"".join(links)}</div>' if links else '<span class="muted">—</span>'
+        product_cell = (
+            f'<div class="prod-name">{product}</div>'
+            + (f'<div class="prod-domain">{domain}</div>' if domain else "")
+        )
         body_rows.append(
-            f"<tr><td>{i}</td><td class='score'>{score}</td><td>{qbadge}</td>"
-            f"<td>{product}</td><td>{domain}</td><td>{ads}</td><td>{days_cell}</td>"
+            f"<tr class='{'row-highlight' if i == 1 else ''}'>"
+            f"<td><span class='{rank_cls}'>{i}</span></td>"
+            f"<td><span class='score-pill'>{score}</span></td>"
+            f"<td>{qbadge}</td>"
+            f"<td class='prod'>{product_cell}</td>"
+            f"<td class='num'>{ads}</td>"
+            f"<td class='days-cell'>{days_cell}</td>"
             f"{tt}{gt}<td class='links'>{link_cell}</td></tr>"
         )
 
@@ -857,49 +884,244 @@ def export_html_report(
 <html lang="vi">
 <head>
   <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>{esc(title)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
-    body {{ font-family: Segoe UI, sans-serif; background:#f5f7fb; margin:0; padding:24px; color:#1f2937; }}
-    h1 {{ margin:0 0 4px; color:#24324a; }}
-    .sub {{ color:#6b7280; margin-bottom:20px; font-size:14px; }}
-    .stats {{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }}
-    .stat {{ background:#fff; border:1px solid #d9e2ef; border-radius:12px; padding:14px 20px; min-width:120px; }}
-    .stat .n {{ font-size:24px; font-weight:800; color:#5b6cff; }}
-    .stat .l {{ font-size:12px; color:#6b7280; }}
-    table {{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.05); }}
-    th, td {{ padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:13px; }}
-    th {{ background:#eef2ff; color:#374151; font-size:11px; text-transform:uppercase; }}
-    .score {{ color:#059669; font-weight:700; }}
-    .qbadge {{ padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }}
-    .tier-good {{ background:#d1fae5; color:#065f46; }}
-    .tier-ok {{ background:#dbeafe; color:#1e40af; }}
-    .tier-mid {{ background:#fef3c7; color:#92400e; }}
-    .tier-low {{ background:#f3f4f6; color:#6b7280; }}
-    .links .lnk {{ display:inline-block; margin-right:6px; padding:2px 8px; border-radius:6px;
-      background:#eef2ff; color:#4338ca; text-decoration:none; font-size:11px; font-weight:600; }}
-    .links .lnk.fb {{ background:#e0f2fe; color:#0369a1; }}
-    .links .lnk:hover {{ text-decoration:underline; }}
-    .note {{ margin-top:16px; font-size:12px; color:#6b7280; }}
+    :root {{
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #4f46e5;
+      --primary-soft: #eef2ff;
+      --good: #059669;
+      --good-bg: #ecfdf5;
+      --ok: #2563eb;
+      --ok-bg: #eff6ff;
+      --mid: #d97706;
+      --mid-bg: #fffbeb;
+      --low: #64748b;
+      --low-bg: #f8fafc;
+      --shadow: 0 4px 24px rgba(15,23,42,.08);
+      --radius: 16px;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: linear-gradient(160deg, #eef2ff 0%, var(--bg) 45%, #f8fafc 100%);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }}
+    .wrap {{ max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }}
+    .hero {{
+      background: linear-gradient(135deg, #312e81 0%, #4f46e5 55%, #6366f1 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 28px 32px 24px;
+      box-shadow: 0 20px 40px rgba(79,70,229,.25);
+      margin-bottom: 24px;
+    }}
+    .hero-eyebrow {{
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .85;
+      margin-bottom: 8px;
+    }}
+    .hero h1 {{ margin: 0 0 10px; font-size: 28px; font-weight: 800; letter-spacing: -.02em; }}
+    .hero-meta {{ font-size: 13px; opacity: .9; max-width: 720px; line-height: 1.6; }}
+    .hero-meta strong {{ font-weight: 600; }}
+    .stats {{
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }}
+    @media (max-width: 640px) {{ .stats {{ grid-template-columns: 1fr; }} }}
+    .stat {{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }}
+    .stat .n {{ font-size: 32px; font-weight: 800; color: var(--primary); line-height: 1; }}
+    .stat .l {{ font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 500; }}
+    .legend {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }}
+    .legend span {{
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }}
+    .card {{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }}
+    .table-scroll {{ overflow-x: auto; }}
+    table {{ width: 100%; border-collapse: collapse; min-width: 720px; }}
+    thead th {{
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }}
+    tbody td {{
+      padding: 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      font-size: 13px;
+    }}
+    tbody tr:last-child td {{ border-bottom: none; }}
+    tbody tr:hover {{ background: #fafbff; }}
+    .row-highlight {{ background: linear-gradient(90deg, #f5f3ff 0%, #fff 100%); }}
+    .rank {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }}
+    .rank-top {{
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(79,70,229,.35);
+    }}
+    .score-pill {{
+      display: inline-block;
+      min-width: 36px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--good);
+      background: var(--good-bg);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }}
+    .qbadge {{
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }}
+    .tier-good {{ background: var(--good-bg); color: #047857; }}
+    .tier-ok {{ background: var(--ok-bg); color: #1d4ed8; }}
+    .tier-mid {{ background: var(--mid-bg); color: #b45309; }}
+    .tier-low {{ background: var(--low-bg); color: var(--low); border: 1px solid var(--border); }}
+    .prod-name {{ font-weight: 600; color: var(--text); line-height: 1.35; max-width: 280px; }}
+    .prod-domain {{ font-size: 11px; color: var(--muted); margin-top: 4px; }}
+    .num {{ font-weight: 600; color: var(--text); }}
+    .days-cell {{ min-width: 72px; }}
+    .days strong {{ font-size: 18px; font-weight: 800; color: var(--primary); }}
+    .days-u {{ font-size: 10px; color: var(--muted); margin-left: 2px; font-weight: 600; }}
+    .days-tip {{ font-size: 10px; color: var(--muted); margin-top: 2px; max-width: 90px; line-height: 1.3; }}
+    .link-row {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+    .btn-link {{
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }}
+    .btn-link:hover {{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }}
+    .btn-link.shop {{ background: var(--primary-soft); color: var(--primary); }}
+    .btn-link.fb {{ background: #e0f2fe; color: #0369a1; }}
+    .pill {{ font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: #f1f5f9; }}
+    .muted {{ color: var(--muted); }}
+    .footer {{
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }}
+    .footer strong {{ color: var(--text); }}
+    @media print {{
+      body {{ background: #fff; }}
+      .hero {{ box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+      .btn-link {{ border: 1px solid var(--border); }}
+    }}
   </style>
 </head>
 <body>
-  <h1>{esc(title)}</h1>
-  <p class="sub">Facebook Ads Library ({esc(COUNTRY)}) • {esc(src_label)} • {datetime.now().strftime('%Y-%m-%d %H:%M')}{(' · ' + esc(sub_extra)) if sub_extra else ''}</p>
-  <div class="stats">
-    <div class="stat"><div class="n">{len(rows)}</div><div class="l">Products</div></div>
-    <div class="stat"><div class="n">{winners}</div><div class="l">Winner candidates</div></div>
-    <div class="stat"><div class="n">{int(top_score)}</div><div class="l">Top score</div></div>
+  <div class="wrap">
+    <header class="hero">
+      <div class="hero-eyebrow">WinnerSpy Research</div>
+      <h1>Báo cáo sản phẩm tiềm năng</h1>
+      <p class="hero-meta">
+        <strong>Facebook Ads Library · {esc(COUNTRY)}</strong> · {esc(report_date)}
+        <br/>{esc(sub_extra)}
+      </p>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><div class="n">{len(rows)}</div><div class="l">Sản phẩm gợi ý</div></div>
+      <div class="stat"><div class="n">{winners}</div><div class="l">Winner candidate</div></div>
+      <div class="stat"><div class="n">{int(top_score)}</div><div class="l">Điểm cao nhất</div></div>
+    </div>
+
+    <div class="legend">
+      <span class="tier-good">Tốt — đáng test</span>
+      <span class="tier-ok">Khá — theo dõi</span>
+      <span class="tier-mid">TB — cân nhắc</span>
+      <span class="tier-low">Kém — tham khảo</span>
+    </div>
+
+    <div class="card">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Điểm</th><th>Chất lượng</th><th>Sản phẩm</th>
+              <th>Ads</th><th>Ngày chạy</th>{tt_head}{gt_head}<th>Liên kết</th>
+            </tr>
+          </thead>
+          <tbody>
+            {''.join(body_rows)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>Ngày chạy</strong> = ad lâu nhất trong nhóm ·
+      <strong>FB Ad</strong> = mở Facebook Ads Library ·
+      <strong>Shop</strong> = trang bán hàng.
+      Bấm <strong>Ctrl+P</strong> → Save as PDF để gửi khách.
+    </div>
   </div>
-  <table>
-    <thead>
-      <tr><th>#</th><th>Score</th><th>Quality</th><th>Product</th><th>Domain</th><th>Ads</th><th>Days</th>{tt_head}{gt_head}<th>Links</th></tr>
-    </thead>
-    <tbody>
-      {''.join(body_rows)}
-    </tbody>
-  </table>
-  <p class="note">Days = ad chạy lâu nhất trong nhóm · FB Ad = mở thẳng Facebook Ads Library.
-  Tốt/Khá/TB/Kém = gợi ý chất lượng. Ctrl+P → Save as PDF.</p>
 </body>
 </html>"""
 
