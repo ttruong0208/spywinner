@@ -729,6 +729,14 @@ def pick_report_products(rows: list, min_n=None, max_n=None) -> list:
     return sorted_rows
 
 
+def ad_library_link(ad_ids_raw: str) -> tuple[str, int]:
+    """URL Ads Library + số ad id trong nhóm."""
+    ids = re.findall(r"\d{8,}", ad_ids_raw or "")
+    if not ids:
+        return "", 0
+    return f"https://www.facebook.com/ads/library/?id={ids[0]}", len(ids)
+
+
 def build_report_product_rows(job_dir, min_n=None, max_n=None) -> list:
     """Ưu tiên scored_products.csv (đủ SP), merge enrichment từ final."""
     job_dir = Path(job_dir)
@@ -809,6 +817,13 @@ def export_html_report(
             f"{esc(tier['label'])}</span>"
         )
         ads = esc(r.get("ads_count") or "")
+        max_days = (r.get("max_days") or "").strip()
+        med_days = (r.get("median_days") or "").strip()
+        if max_days:
+            days_tip = f"median {med_days}d" if med_days else "longest-running ad in group"
+            days_cell = f'<span title="{esc(days_tip)}">{esc(max_days)}d</span>'
+        else:
+            days_cell = "—"
         tt = ""
         gt = ""
         if has_gt:
@@ -818,11 +833,21 @@ def export_html_report(
                 f"<td>{esc(r.get('tt_label'))}</td>"
                 f"<td>{esc(r.get('tt_top_views'))}</td>"
             )
-        url = esc(r.get("sample_url") or "")
-        link = f'<a href="{url}" target="_blank">link</a>' if url else ""
+        shop_url = (r.get("sample_url") or "").strip()
+        links = []
+        if shop_url:
+            links.append(f'<a href="{esc(shop_url)}" target="_blank" rel="noopener" class="lnk">Shop</a>')
+        fb_url, fb_n = ad_library_link(r.get("ad_ids") or "")
+        if fb_url:
+            fb_label = f"FB ×{fb_n}" if fb_n > 1 else "FB Ad"
+            links.append(
+                f'<a href="{esc(fb_url)}" target="_blank" rel="noopener" class="lnk fb">{fb_label}</a>'
+            )
+        link_cell = " ".join(links) if links else "—"
         body_rows.append(
             f"<tr><td>{i}</td><td class='score'>{score}</td><td>{qbadge}</td>"
-            f"<td>{product}</td><td>{domain}</td><td>{ads}</td>{tt}{gt}<td>{link}</td></tr>"
+            f"<td>{product}</td><td>{domain}</td><td>{ads}</td><td>{days_cell}</td>"
+            f"{tt}{gt}<td class='links'>{link_cell}</td></tr>"
         )
 
     tt_head = "<th>TikTok</th><th>Views</th>" if has_tiktok else ""
@@ -850,6 +875,10 @@ def export_html_report(
     .tier-ok {{ background:#dbeafe; color:#1e40af; }}
     .tier-mid {{ background:#fef3c7; color:#92400e; }}
     .tier-low {{ background:#f3f4f6; color:#6b7280; }}
+    .links .lnk {{ display:inline-block; margin-right:6px; padding:2px 8px; border-radius:6px;
+      background:#eef2ff; color:#4338ca; text-decoration:none; font-size:11px; font-weight:600; }}
+    .links .lnk.fb {{ background:#e0f2fe; color:#0369a1; }}
+    .links .lnk:hover {{ text-decoration:underline; }}
     .note {{ margin-top:16px; font-size:12px; color:#6b7280; }}
   </style>
 </head>
@@ -863,13 +892,14 @@ def export_html_report(
   </div>
   <table>
     <thead>
-      <tr><th>#</th><th>Score</th><th>Quality</th><th>Product</th><th>Domain</th><th>Ads</th>{tt_head}{gt_head}<th>Landing</th></tr>
+      <tr><th>#</th><th>Score</th><th>Quality</th><th>Product</th><th>Domain</th><th>Ads</th><th>Days</th>{tt_head}{gt_head}<th>Links</th></tr>
     </thead>
     <tbody>
       {''.join(body_rows)}
     </tbody>
   </table>
-  <p class="note">Tốt = đáng test · Khá = theo dõi · Trung bình = cân nhắc · Kém = tham khảo. Ctrl+P → Save as PDF.</p>
+  <p class="note">Days = ad chạy lâu nhất trong nhóm · FB Ad = mở thẳng Facebook Ads Library.
+  Tốt/Khá/TB/Kém = gợi ý chất lượng. Ctrl+P → Save as PDF.</p>
 </body>
 </html>"""
 
