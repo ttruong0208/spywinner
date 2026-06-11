@@ -50,6 +50,8 @@ KEYWORDS = list(KEYWORD_PRESETS["cleaning_us"])
 COUNTRY = "US"
 SCROLL_ROUNDS = 8
 TOP_N = 20
+REPORT_MIN_PRODUCTS = 5
+REPORT_MAX_PRODUCTS = 7
 DEBUG = False
 
 USE_CDP = True
@@ -647,19 +649,127 @@ def run_google_trends_enrich(
     return output_csv
 
 
+def product_row_key(row: dict) -> str:
+    return (row.get("signature") or row.get("product") or "").strip()
+
+
+def quality_tier(row: dict) -> dict:
+    """Nhãn chất lượng cho khách chọn SP (Tốt / Khá / Trung bình / Kém)."""
+    try:
+        score = float(row.get("final_priority") or row.get("win_score") or 0)
+    except (TypeError, ValueError):
+        score = 0.0
+    label = (row.get("label") or "").strip()
+
+    if label == "winner_candidate" or score >= 22:
+        return {
+            "tier": "good",
+            "label": "Tốt",
+            "hint": "Tín hiệu mạnh — đáng test landing/creative",
+            "css": "tier-good",
+        }
+    if label == "watchlist" or score >= 16:
+        return {
+            "tier": "ok",
+            "label": "Khá",
+            "hint": "Có tiềm năng — theo dõi thêm",
+            "css": "tier-ok",
+        }
+    if label == "testing" or score >= 10:
+        return {
+            "tier": "mid",
+            "label": "Trung bình",
+            "hint": "Mới hoặc ít ads — cân nhắc kỹ",
+            "css": "tier-mid",
+        }
+    return {
+        "tier": "low",
+        "label": "Kém",
+        "hint": "Ít bằng chứng — chỉ tham khảo",
+        "css": "tier-low",
+    }
+
+
+def load_csv_rows(path) -> list:
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            return list(csv.DictReader(f))
+    except OSError:
+        return []
+
+
+def merge_enrichment_rows(scored: list, enriched: list) -> list:
+    """Gắn TikTok/Trends từ final.csv lên toàn bộ scored."""
+    by_key = {product_row_key(r): r for r in enriched if product_row_key(r)}
+    out = []
+    for row in scored:
+        r = dict(row)
+        extra = by_key.get(product_row_key(r))
+        if extra:
+            for k, v in extra.items():
+                if str(k).startswith(("tt_", "gt_")) or k == "final_priority":
+                    r[k] = v
+        out.append(r)
+    return out
+
+
+def pick_report_products(rows: list, min_n=None, max_n=None) -> list:
+    """Top 5–7 SP theo điểm — để khách chọn, không chỉ 1 winner."""
+    min_n = REPORT_MIN_PRODUCTS if min_n is None else min_n
+    max_n = REPORT_MAX_PRODUCTS if max_n is None else max_n
+    if not rows:
+        return []
+    sorted_rows = sorted(
+        rows,
+        key=lambda r: float(r.get("final_priority") or r.get("win_score") or 0),
+        reverse=True,
+    )
+    if len(sorted_rows) >= min_n:
+        return sorted_rows[: min(max_n, len(sorted_rows))]
+    return sorted_rows
+
+
+def build_report_product_rows(job_dir, min_n=None, max_n=None) -> list:
+    """Ưu tiên scored_products.csv (đủ SP), merge enrichment từ final."""
+    job_dir = Path(job_dir)
+    scored_p = job_dir / "scored_products.csv"
+    final_p = job_dir / "final_research_results.csv"
+    winners_p = job_dir / "winner_products.csv"
+
+    scored = load_csv_rows(scored_p) if scored_p.is_file() else []
+    if not scored and winners_p.is_file():
+        scored = load_csv_rows(winners_p)
+    if not scored and final_p.is_file():
+        scored = load_csv_rows(final_p)
+
+    enriched = load_csv_rows(final_p) if final_p.is_file() else []
+    if not enriched and winners_p.is_file():
+        enriched = load_csv_rows(winners_p)
+
+    merged = merge_enrichment_rows(scored, enriched) if enriched else scored
+    return pick_report_products(merged, min_n, max_n)
+
+
 def export_html_report(
-    csv_path,
-    html_path,
+    csv_path=None,
+    html_path=None,
     title="WinnerSpy — Research Report",
     subtitle_extra: str = "",
+    job_dir=None,
+    rows=None,
 ):
-    """Tạo báo cáo HTML động từ winner hoặc final CSV (demo bán khách)."""
-    try:
-        with open(csv_path, "r", encoding="utf-8-sig") as f:
-            rows = list(csv.DictReader(f))
-    except OSError:
-        print(f"Cannot read CSV: {csv_path}")
-        return None
+    """Báo cáo HTML: top 5–7 SP + nhãn chất lượng (Tốt/Khá/TB/Kém)."""
+    if rows is None:
+        if job_dir:
+            rows = build_report_product_rows(job_dir)
+        elif csv_path:
+            parent = Path(csv_path).parent
+            rows = build_report_product_rows(parent)
+            if not rows:
+                rows = pick_report_products(load_csv_rows(csv_path))
+        else:
+            print("export_html_report: no data source")
+            return None
 
     if not rows:
         print("CSV empty — no HTML report.")
@@ -670,12 +780,15 @@ def export_html_report(
     winners = sum(1 for r in rows if (r.get("label") or "") == "winner_candidate")
     preset_hits = sum(1 for r in rows if str(r.get("matches_preset") or "") == "1")
     top_score = max(float(r.get("win_score") or r.get("final_priority") or 0) for r in rows)
-    sub_extra = subtitle_extra or ""
+    sub_extra = subtitle_extra or (
+        f"Top {len(rows)} sản phẩm để bạn chọn — nhãn Tốt/Khá/TB/Kém theo điểm & tín hiệu FB"
+    )
     if preset_hits and preset_hits < len(rows):
         sub_extra = (
             (sub_extra + " · ").strip(" · ")
-            + f"{preset_hits}/{len(rows)} products match preset filter (matches_preset column)"
+            + f"{preset_hits}/{len(rows)} đạt preset filter"
         )
+    src_label = str(job_dir or csv_path or "scored_products.csv")
 
     def esc(text):
         return (
@@ -686,11 +799,15 @@ def export_html_report(
         )
 
     body_rows = []
-    for i, r in enumerate(rows[:TOP_N], start=1):
+    for i, r in enumerate(rows, start=1):
         product = esc(r.get("product") or r.get("signature") or "?")
         domain = esc(r.get("sample_domain") or r.get("domain") or "")
         score = esc(r.get("final_priority") or r.get("win_score") or "")
-        label = esc(r.get("label") or "")
+        tier = quality_tier(r)
+        qbadge = (
+            f"<span class='qbadge {tier['css']}' title='{esc(tier['hint'])}'>"
+            f"{esc(tier['label'])}</span>"
+        )
         ads = esc(r.get("ads_count") or "")
         tt = ""
         gt = ""
@@ -704,7 +821,7 @@ def export_html_report(
         url = esc(r.get("sample_url") or "")
         link = f'<a href="{url}" target="_blank">link</a>' if url else ""
         body_rows.append(
-            f"<tr><td>{i}</td><td class='score'>{score}</td><td><span class='badge'>{label}</span></td>"
+            f"<tr><td>{i}</td><td class='score'>{score}</td><td>{qbadge}</td>"
             f"<td>{product}</td><td>{domain}</td><td>{ads}</td>{tt}{gt}<td>{link}</td></tr>"
         )
 
@@ -728,13 +845,17 @@ def export_html_report(
     th, td {{ padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb; font-size:13px; }}
     th {{ background:#eef2ff; color:#374151; font-size:11px; text-transform:uppercase; }}
     .score {{ color:#059669; font-weight:700; }}
-    .badge {{ background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:999px; font-size:11px; }}
+    .qbadge {{ padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }}
+    .tier-good {{ background:#d1fae5; color:#065f46; }}
+    .tier-ok {{ background:#dbeafe; color:#1e40af; }}
+    .tier-mid {{ background:#fef3c7; color:#92400e; }}
+    .tier-low {{ background:#f3f4f6; color:#6b7280; }}
     .note {{ margin-top:16px; font-size:12px; color:#6b7280; }}
   </style>
 </head>
 <body>
   <h1>{esc(title)}</h1>
-  <p class="sub">Facebook Ads Library ({esc(COUNTRY)}) • {esc(csv_path)} • {datetime.now().strftime('%Y-%m-%d %H:%M')}{(' · ' + esc(sub_extra)) if sub_extra else ''}</p>
+  <p class="sub">Facebook Ads Library ({esc(COUNTRY)}) • {esc(src_label)} • {datetime.now().strftime('%Y-%m-%d %H:%M')}{(' · ' + esc(sub_extra)) if sub_extra else ''}</p>
   <div class="stats">
     <div class="stat"><div class="n">{len(rows)}</div><div class="l">Products</div></div>
     <div class="stat"><div class="n">{winners}</div><div class="l">Winner candidates</div></div>
@@ -742,13 +863,13 @@ def export_html_report(
   </div>
   <table>
     <thead>
-      <tr><th>#</th><th>Score</th><th>Label</th><th>Product</th><th>Domain</th><th>Ads</th>{tt_head}{gt_head}<th>Landing</th></tr>
+      <tr><th>#</th><th>Score</th><th>Quality</th><th>Product</th><th>Domain</th><th>Ads</th>{tt_head}{gt_head}<th>Landing</th></tr>
     </thead>
     <tbody>
       {''.join(body_rows)}
     </tbody>
   </table>
-  <p class="note">Ctrl+P → Save as PDF to share with clients. Tool: WinnerSpy / Ads Library research.</p>
+  <p class="note">Tốt = đáng test · Khá = theo dõi · Trung bình = cân nhắc · Kém = tham khảo. Ctrl+P → Save as PDF.</p>
 </body>
 </html>"""
 
@@ -1956,11 +2077,10 @@ def run(
         print(f"Saved: {scored_out}, {winners_out}")
         _enrichment_steps(scored, winners)
         if report_out:
-            src = report_source if os.path.isfile(report_source) else scored_out
             export_html_report(
-                src,
-                report_out,
-                subtitle_extra="" if winners else "0 preset matches — full scored list",
+                html_path=report_out,
+                job_dir=Path(report_out).parent,
+                subtitle_extra="" if winners else "0 preset matches — showing top scored list",
             )
         return
 
@@ -2030,11 +2150,10 @@ def run(
         _enrichment_steps(scored, winners)
 
     if report_out:
-        src = report_source if os.path.isfile(report_source) else scored_out
         export_html_report(
-            src,
-            report_out,
-            subtitle_extra="" if winners else "0 preset matches — full scored list",
+            html_path=report_out,
+            job_dir=Path(report_out).parent,
+            subtitle_extra="" if winners else "0 preset matches — showing top scored list",
         )
 
 

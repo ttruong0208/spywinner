@@ -38,11 +38,12 @@
     <pre class="log" id="logbox">{{ log }}</pre>
   </section>
   <section class="card">
-    <h2>Top products</h2>
+    <h2>Top products (5–7 để chọn)</h2>
   {% if filter_preset_meta %}
   <p class="muted small" style="margin-bottom:0.75rem">
-    Filter applied during scan: <strong>{{ filter_preset_meta.title }}</strong> — {{ filter_preset_meta.hint }}
-    <br/>Table below = <strong>scored</strong> results. ✓ column = meets preset → included in <code>winner_products.csv</code>.
+    Filter khi quét: <strong>{{ filter_preset_meta.title }}</strong> — {{ filter_preset_meta.hint }}
+    <br/>Bảng dưới = <strong>top 5–7 SP</strong> theo điểm (kể cả điểm thấp). Nhãn <strong>Chất lượng</strong>: Tốt / Khá / Trung bình / Kém.
+    ✓ = đạt preset → có trong <code>winner_products.csv</code>.
   </p>
   {% endif %}
   {% if rows %}
@@ -94,7 +95,7 @@
       <table class="tbl" id="winner-table">
         <thead>
           <tr>
-            <th>#</th><th>✓</th><th>Score</th><th>Label</th><th>Product</th><th>Domain</th>
+            <th>#</th><th>✓</th><th>Score</th><th>Chất lượng</th><th>Product</th><th>Domain</th>
             <th>Ads</th><th title="Longest running ad">Days max</th><th>Creatives</th>
             <th>Links</th>
             {% if show_tt %}<th>TikTok</th><th>Views</th>{% endif %}
@@ -114,7 +115,7 @@
             <td>{{ loop.index }}</td>
             <td>{% if r.matches_preset == '1' %}<span class="pill ok" title="Meets preset">✓</span>{% else %}<span class="muted">—</span>{% endif %}</td>
             <td class="score">{{ r.score }}</td>
-            <td><span class="label-tag {% if r.label == 'weak' %}weak{% endif %}">{{ r.label or '—' }}</span></td>
+            <td><span class="quality-tag {{ r.quality_css }}" title="{{ r.quality_hint }}">{{ r.quality or '—' }}</span></td>
             <td title="{{ r.product }}">{{ r.product[:32] }}{% if r.product|length > 32 %}…{% endif %}</td>
             <td class="muted small" title="{{ r.domain }}">{{ (r.domain or '—')[:18] }}{% if r.domain and r.domain|length > 18 %}…{% endif %}</td>
             <td>{{ r.ads_count or '—' }}</td>

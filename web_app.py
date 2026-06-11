@@ -841,13 +841,10 @@ def job_report(job_id):
         abort(404)
     directory = jobs.job_path(job["user_id"], job_id)
     report = directory / "report.html"
-    if not report.is_file():
-        final = directory / "final_research_results.csv"
-        winners = directory / "winner_products.csv"
-        source = final if final.is_file() else winners
-        if source.is_file():
-            _r_module().export_html_report(str(source), str(report))
-    if not report.is_file():
+    scored = directory / "scored_products.csv"
+    if scored.is_file():
+        _r_module().export_html_report(html_path=str(report), job_dir=str(directory))
+    elif not report.is_file():
         abort(404)
     return send_from_directory(directory, "report.html")
 
@@ -860,46 +857,42 @@ def _ad_library_meta(ad_ids_raw: str) -> tuple[str, int]:
     return f"https://www.facebook.com/ads/library/?id={ids[0]}", len(ids)
 
 
-def load_winner_preview(user_id: int, job_id: str, limit: int = 50) -> list[dict]:
+def load_winner_preview(user_id: int, job_id: str, limit: int = 7) -> list[dict]:
     d = jobs.job_path(user_id, job_id)
-    for name in ("final_research_results.csv", "scored_products.csv", "winner_products.csv"):
-        p = d / name
-        if not p.is_file():
-            continue
-        with p.open(encoding="utf-8-sig", newline="") as f:
-            rows = list(csv.DictReader(f))
-        rows.sort(
-            key=lambda r: float(r.get("final_priority") or r.get("win_score") or 0),
-            reverse=True,
-        )
-        out = []
-        for r in rows[:limit]:
-            ad_url, ad_n = _ad_library_meta(r.get("ad_ids") or "")
-            out.append({
-                "product": r.get("product") or r.get("signature") or "?",
-                "score": r.get("final_priority") or r.get("win_score") or "",
-                "label": r.get("label") or "",
-                "confidence": r.get("confidence") or "",
-                "matches_preset": str(r.get("matches_preset") or ""),
-                "tt_label": r.get("tt_label") or "",
-                "tt_top_views": r.get("tt_top_views") or "",
-                "tt_status": r.get("tt_status") or "",
-                "gt_label": r.get("gt_label") or "",
-                "gt_interest": r.get("gt_interest") or "",
-                "gt_status": r.get("gt_status") or "",
-                "domain": r.get("sample_domain") or r.get("domain") or "",
-                "ads_count": r.get("ads_count") or "",
-                "max_days": r.get("max_days") or "",
-                "median_days": r.get("median_days") or "",
-                "creative_count": r.get("creative_count") or "",
-                "pages_count": r.get("pages_count") or "",
-                "landing_type": r.get("landing_type") or "",
-                "url": r.get("sample_url") or "",
-                "ad_library_url": ad_url,
-                "ad_count": ad_n,
-            })
-        return out
-    return []
+    mod = _r_module()
+    cap = min(limit, getattr(mod, "REPORT_MAX_PRODUCTS", 7))
+    raw_rows = mod.build_report_product_rows(d, max_n=cap)
+    out = []
+    for r in raw_rows:
+        tier = mod.quality_tier(r)
+        ad_url, ad_n = _ad_library_meta(r.get("ad_ids") or "")
+        out.append({
+            "product": r.get("product") or r.get("signature") or "?",
+            "score": r.get("final_priority") or r.get("win_score") or "",
+            "label": r.get("label") or "",
+            "confidence": r.get("confidence") or "",
+            "quality": tier["label"],
+            "quality_hint": tier["hint"],
+            "quality_css": tier["css"],
+            "matches_preset": str(r.get("matches_preset") or ""),
+            "tt_label": r.get("tt_label") or "",
+            "tt_top_views": r.get("tt_top_views") or "",
+            "tt_status": r.get("tt_status") or "",
+            "gt_label": r.get("gt_label") or "",
+            "gt_interest": r.get("gt_interest") or "",
+            "gt_status": r.get("gt_status") or "",
+            "domain": r.get("sample_domain") or r.get("domain") or "",
+            "ads_count": r.get("ads_count") or "",
+            "max_days": r.get("max_days") or "",
+            "median_days": r.get("median_days") or "",
+            "creative_count": r.get("creative_count") or "",
+            "pages_count": r.get("pages_count") or "",
+            "landing_type": r.get("landing_type") or "",
+            "url": r.get("sample_url") or "",
+            "ad_library_url": ad_url,
+            "ad_count": ad_n,
+        })
+    return out
 
 
 @app.route("/settings", methods=["GET", "POST"])

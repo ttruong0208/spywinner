@@ -718,6 +718,34 @@ details.advanced .advanced-body {
   color: var(--text-muted);
 }
 
+.quality-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.quality-tag.tier-good {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.quality-tag.tier-ok {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.quality-tag.tier-mid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.quality-tag.tier-low {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
 .back-link {
   display: inline-block;
   margin-top: 1.5rem;
