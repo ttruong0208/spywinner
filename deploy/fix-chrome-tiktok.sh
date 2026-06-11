@@ -9,6 +9,9 @@ echo "==> Cài Xvfb (Chrome cần display ảo, không headless)"
 apt-get update -qq
 apt-get install -y -qq xvfb
 
+echo "==> Quyền thực thi script deploy (git pull đôi khi mất +x)"
+chmod +x "${APP_DIR}/deploy/"*.sh 2>/dev/null || true
+
 echo "==> Đảm bảo systemd dùng deploy/start_chrome_debug.sh (không headless)"
 UNIT="/etc/systemd/system/${SERVICE}.service"
 if [[ -f "$UNIT" ]]; then
@@ -31,13 +34,30 @@ if [[ -f "$CUSTOM" ]] && grep -q 'headless' "$CUSTOM"; then
   chmod +x "$CUSTOM"
 fi
 
+if [[ -f "$UNIT" ]] && ! grep -q 'DISPLAY=:99' "$UNIT"; then
+  sed -i '/Environment=APP_DIR/a Environment=DISPLAY=:99' "$UNIT"
+  systemctl daemon-reload
+fi
+
+echo "==> Dọn lock Chrome cũ"
+PROFILE="${CHROME_PROFILE:-/var/lib/winnerspy/chrome_profile}"
+pkill -f 'remote-debugging-port' 2>/dev/null || true
+sleep 2
+rm -f "$PROFILE/SingletonLock" "$PROFILE/SingletonCookie" "$PROFILE/SingletonSocket" 2>/dev/null || true
+
 echo "==> Restart Chrome"
 systemctl restart "$SERVICE"
-sleep 3
-if curl -sf "http://127.0.0.1:9222/json/version" | head -c 80; then
-  echo ""
-  echo "OK — CDP sẵn sàng. Tạo report mới để kiểm tra TikTok."
-else
-  echo "WARN — CDP chưa phản hồi. Xem: journalctl -u $SERVICE -n 40 --no-pager"
-  exit 1
-fi
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  sleep 3
+  if curl -sf "http://127.0.0.1:9222/json/version" >/dev/null; then
+    curl -s "http://127.0.0.1:9222/json/version" | head -c 120
+    echo ""
+    echo "OK — CDP sẵn sàng (sau ${i}x3s). Tạo report mới để kiểm tra TikTok."
+    exit 0
+  fi
+done
+
+echo "WARN — CDP chưa phản hồi sau 30s."
+systemctl status "$SERVICE" --no-pager -l | tail -20
+journalctl -u "$SERVICE" -n 30 --no-pager
+exit 1
