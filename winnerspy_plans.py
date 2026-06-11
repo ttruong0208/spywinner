@@ -112,10 +112,12 @@ def resolve_keywords(opts: dict, limits: dict) -> tuple[str, int]:
     elif preset and preset in KEYWORD_PRESETS:
         chosen = list(KEYWORD_PRESETS[preset])[:max_k]
     else:
-        chosen = list(KEYWORD_PRESETS.get("cleaning_us", []))[:max_k]
+        chosen = []
 
     if not chosen:
-        raise ValueError("Need at least 1 keyword (or pick a preset).")
+        raise ValueError(
+            f"Enter at least 1 keyword (one per line, max {max_k} on your plan)."
+        )
 
     if len(custom) > max_k:
         raise ValueError(

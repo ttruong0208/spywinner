@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 EnvironmentFile=-/etc/winnerspy/env
 Environment=APP_DIR=/opt/winnerspy/spywinner
+Environment=DISPLAY=:99
 ExecStart=/opt/winnerspy/spywinner/deploy/start_chrome_debug.sh
 Restart=always
 RestartSec=15

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import secrets
 import threading
 from functools import wraps
@@ -653,7 +654,6 @@ def dashboard():
     limits = db.plan_limits(current_user.plan if current_user.plan != "admin" else "vip")
     return render_template(
         "index.html",
-        presets=jobs.PRESETS,
         jobs=db.list_jobs_for_user(current_user.id, 25),
         roadmap=ROADMAP,
         cdp_default=current_user.cdp_url,
@@ -676,7 +676,7 @@ def api_cdp_check():
 def scan():
     opts = {
         "country": request.form.get("country", "US").strip().upper(),
-        "preset": request.form.get("preset", "cleaning_us").strip(),
+        "preset": "",
         "keywords": request.form.get("keywords", "").strip(),
         "scroll": int(request.form.get("scroll") or 8),
         "top": int(request.form.get("top") or 20),
@@ -716,6 +716,13 @@ def job_detail(job_id):
     if not meta:
         abort(404)
     rows = load_winner_preview(uid, job_id, limit=50)
+    opts = meta.get("opts") or {}
+    show_tt = bool(opts.get("tiktok")) or any(
+        r.get("tt_status") or r.get("tt_label") for r in rows
+    )
+    show_gt = bool(opts.get("google_trends")) or any(
+        r.get("gt_status") or r.get("gt_label") for r in rows
+    )
     fp = (meta.get("opts") or {}).get("filter_preset", "balanced")
     job_dir = jobs.job_path(uid, job_id)
     raw_csv = job_dir / "raw_ads.csv"
@@ -737,6 +744,8 @@ def job_detail(job_id):
         filter_presets=list_presets_for_ui(),
         has_raw_ads=has_raw_ads,
         raw_ad_count=raw_ad_count,
+        show_tt=show_tt,
+        show_gt=show_gt,
     )
 
 
@@ -843,6 +852,14 @@ def job_report(job_id):
     return send_from_directory(directory, "report.html")
 
 
+def _ad_library_meta(ad_ids_raw: str) -> tuple[str, int]:
+    """First FB Ads Library URL + total ad id count from CSV ad_ids field."""
+    ids = re.findall(r"\d{8,}", ad_ids_raw or "")
+    if not ids:
+        return "", 0
+    return f"https://www.facebook.com/ads/library/?id={ids[0]}", len(ids)
+
+
 def load_winner_preview(user_id: int, job_id: str, limit: int = 50) -> list[dict]:
     d = jobs.job_path(user_id, job_id)
     for name in ("final_research_results.csv", "scored_products.csv", "winner_products.csv"):
@@ -857,6 +874,7 @@ def load_winner_preview(user_id: int, job_id: str, limit: int = 50) -> list[dict
         )
         out = []
         for r in rows[:limit]:
+            ad_url, ad_n = _ad_library_meta(r.get("ad_ids") or "")
             out.append({
                 "product": r.get("product") or r.get("signature") or "?",
                 "score": r.get("final_priority") or r.get("win_score") or "",
@@ -864,12 +882,21 @@ def load_winner_preview(user_id: int, job_id: str, limit: int = 50) -> list[dict
                 "confidence": r.get("confidence") or "",
                 "matches_preset": str(r.get("matches_preset") or ""),
                 "tt_label": r.get("tt_label") or "",
+                "tt_top_views": r.get("tt_top_views") or "",
+                "tt_status": r.get("tt_status") or "",
+                "gt_label": r.get("gt_label") or "",
+                "gt_interest": r.get("gt_interest") or "",
+                "gt_status": r.get("gt_status") or "",
                 "domain": r.get("sample_domain") or r.get("domain") or "",
                 "ads_count": r.get("ads_count") or "",
                 "max_days": r.get("max_days") or "",
+                "median_days": r.get("median_days") or "",
                 "creative_count": r.get("creative_count") or "",
+                "pages_count": r.get("pages_count") or "",
                 "landing_type": r.get("landing_type") or "",
                 "url": r.get("sample_url") or "",
+                "ad_library_url": ad_url,
+                "ad_count": ad_n,
             })
         return out
     return []
@@ -926,8 +953,8 @@ def schedules_page():
             else:
                 opts = {
                     "country": request.form.get("country", "US"),
-                    "preset": request.form.get("preset", "cleaning_us"),
-                    "keywords": request.form.get("keywords", ""),
+                    "preset": "",
+                    "keywords": request.form.get("keywords", "").strip(),
                     "scroll": int(request.form.get("scroll") or 8),
                     "tiktok": request.form.get("tiktok") == "on",
                     "tiktok_limit": int(request.form.get("tiktok_limit") or 15),
@@ -947,7 +974,6 @@ def schedules_page():
     return render_template(
         "schedules.html",
         schedules=db.list_schedules(current_user.id),
-        presets=jobs.PRESETS,
         limits=limits,
     )
 

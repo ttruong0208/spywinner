@@ -46,6 +46,10 @@
   </p>
   {% endif %}
   {% if rows %}
+  <p class="muted small" style="margin-bottom:0.75rem">
+    <strong>Days</strong> = longest-running ad in the group (median in tooltip).
+    <strong>FB Ad</strong> opens Facebook Ads Library — use <a href="{{ url_for('job_gallery', job_id=job.id) }}">Ad gallery</a> to browse every creative.
+  </p>
   <div class="job-filter-bar">
     <span class="muted small" style="width:100%;margin-bottom:0.25rem">Refilter results (no rescan needed):</span>
     <label class="jf-field">Ads ≥
@@ -89,7 +93,13 @@
     <div class="table-wrap">
       <table class="tbl" id="winner-table">
         <thead>
-          <tr><th>#</th><th>✓</th><th>Score</th><th>Label</th><th>Product</th><th>Ads</th><th>Days</th></tr>
+          <tr>
+            <th>#</th><th>✓</th><th>Score</th><th>Label</th><th>Product</th><th>Domain</th>
+            <th>Ads</th><th title="Longest running ad">Days max</th><th>Creatives</th>
+            <th>Links</th>
+            {% if show_tt %}<th>TikTok</th><th>Views</th>{% endif %}
+            {% if show_gt %}<th>Trends</th><th>Interest</th>{% endif %}
+          </tr>
         </thead>
         <tbody id="winner-rows">
           {% for r in rows %}
@@ -105,12 +115,28 @@
             <td>{% if r.matches_preset == '1' %}<span class="pill ok" title="Meets preset">✓</span>{% else %}<span class="muted">—</span>{% endif %}</td>
             <td class="score">{{ r.score }}</td>
             <td><span class="label-tag {% if r.label == 'weak' %}weak{% endif %}">{{ r.label or '—' }}</span></td>
-            <td title="{{ r.product }}">
-              {% if r.url %}<a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.product[:28] }}{% if r.product|length > 28 %}…{% endif %}</a>
-              {% else %}{{ r.product[:32] }}{% if r.product|length > 32 %}…{% endif %}{% endif %}
+            <td title="{{ r.product }}">{{ r.product[:32] }}{% if r.product|length > 32 %}…{% endif %}</td>
+            <td class="muted small" title="{{ r.domain }}">{{ (r.domain or '—')[:18] }}{% if r.domain and r.domain|length > 18 %}…{% endif %}</td>
+            <td>{{ r.ads_count or '—' }}</td>
+            <td title="{% if r.median_days %}Median {{ r.median_days }} days{% endif %}">
+              {% if r.max_days %}<strong>{{ r.max_days }}</strong>d{% else %}<span class="muted">—</span>{% endif %}
             </td>
-            <td>{{ r.ads_count }}</td>
-            <td>{{ r.max_days }}</td>
+            <td>{{ r.creative_count or '—' }}</td>
+            <td class="job-links">
+              {% if r.url %}<a href="{{ r.url }}" target="_blank" rel="noopener" class="job-link-chip">Shop</a>{% endif %}
+              {% if r.ad_library_url %}
+              <a href="{{ r.ad_library_url }}" target="_blank" rel="noopener" class="job-link-chip">FB{% if r.ad_count > 1 %} ×{{ r.ad_count }}{% endif %}</a>
+              {% endif %}
+              {% if not r.url and not r.ad_library_url %}<span class="muted">—</span>{% endif %}
+            </td>
+            {% if show_tt %}
+            <td>{% if r.tt_status == 'ok' %}<span class="pill ok">{{ r.tt_label or '—' }}</span>{% elif r.tt_status %}<span class="muted small" title="{{ r.tt_status }}">{{ r.tt_label or r.tt_status }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td>{% if r.tt_top_views %}{{ r.tt_top_views }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            {% endif %}
+            {% if show_gt %}
+            <td>{% if r.gt_status == 'ok' %}<span class="pill ok">{{ r.gt_label or '—' }}</span>{% elif r.gt_status %}<span class="muted small" title="{{ r.gt_status }}">{{ r.gt_label or r.gt_status }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td>{% if r.gt_interest %}{{ r.gt_interest }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>

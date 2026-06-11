@@ -629,6 +629,19 @@ details.advanced .advanced-body {
 .tbl tbody tr:last-child td { border-bottom: none; }
 .tbl tbody tr:hover td { background: #fafbfc; }
 .tbl .score { color: var(--primary); font-weight: 700; }
+.job-links { white-space: nowrap; }
+.job-link-chip {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eef2ff;
+  color: var(--primary);
+  text-decoration: none;
+}
+.job-link-chip:hover { background: #dce4ff; }
 
 /* Log */
 .log {

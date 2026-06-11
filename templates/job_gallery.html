@@ -72,7 +72,8 @@
       {% endif %}
     </header>
     <p class="ad-card-dates muted small">
-      {% if ad.started_label %}Started {{ ad.started_label }}{% else %}Still active{% endif %}
+      {% if ad.days %}<strong>{{ ad.days }} days</strong> running{% if ad.started_label %} · started {{ ad.started_label }}{% endif %}
+      {% elif ad.started_label %}Started {{ ad.started_label }}{% else %}Still active{% endif %}
       · Last seen {{ ad.last_seen }}
     </p>
     <p class="ad-card-copy">{{ ad.body[:280] }}{% if ad.body|length > 280 %}…{% endif %}</p>

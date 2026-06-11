@@ -34,10 +34,8 @@
       <label>Country
         <select name="country"><option value="US">United States (US)</option><option value="VN">Vietnam (VN)</option></select>
       </label>
-      <label>Preset
-        <select name="preset">
-          {% for p in presets %}<option value="{{ p }}">{{ preset_labels.get(p, p) }}</option>{% endfor %}
-        </select>
+      <label class="full">Keywords <span class="hint">(one per line)</span>
+        <textarea name="keywords" rows="4" required placeholder="keyword 1&#10;keyword 2"></textarea>
       </label>
       <label class="check">
         <input type="checkbox" name="tiktok" checked/> Enable TikTok

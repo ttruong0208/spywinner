@@ -83,15 +83,8 @@
             <option value="ALL">All</option>
           </select>
         </label>
-        <label>Keyword preset
-          <select name="preset">
-            {% for p in presets %}
-            <option value="{{ p }}" {% if p == 'cleaning_us' %}selected{% endif %}>{{ preset_labels.get(p, p) }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="full">Custom keywords <span class="hint">(up to <strong>{{ limits.keywords_max }}</strong> lines per scan)</span>
-          <textarea name="keywords" rows="3" placeholder="First-time suggestions: magnetic eyelash kit&#10;portable blender&#10;Avoid single broad terms (cleaning, beauty) with strict Winner preset."></textarea>
+        <label class="full">Keywords <span class="hint">(one niche/term per line — up to <strong>{{ limits.keywords_max }}</strong> per scan)</span>
+          <textarea name="keywords" rows="5" required placeholder="magnetic eyelash kit&#10;portable blender&#10;pet hair remover&#10;posture corrector"></textarea>
         </label>
 
         <div class="adspy-filter-panel full">
